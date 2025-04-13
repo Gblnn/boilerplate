@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { LoadingScreen } from "./LoadingScreen";
 
 interface PublicRouteProps {
   children: React.ReactNode;
@@ -13,7 +14,7 @@ export const PublicRoute = ({
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <LoadingScreen />;
   }
 
   if (user) {

@@ -18,6 +18,7 @@ import {
   getLocalUserData,
   clearLocalAuth,
 } from "../services/auth/offlineAuth";
+import { LoadingScreen } from "@/components/common/LoadingScreen";
 
 interface AuthContextType {
   user: User | null;
@@ -61,8 +62,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
-  // Initialize auth state from local storage if offline
+  // Initialize auth state
   useEffect(() => {
+    // First check local storage for offline mode
     if (!isOnline) {
       const localAuthData = getLocalAuthData();
       if (localAuthData) {
@@ -73,19 +75,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         clearLocalAuth();
       }
       setLoading(false);
+      return;
     }
-  }, [isOnline]);
 
-  // Handle Firebase auth state changes
-  useEffect(() => {
+    // Online mode: listen to Firebase auth state
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-        const userData = await getUserData(user.uid);
-        setUserData(userData);
-        // Save to local storage for offline access
-        saveAuthToLocal(user);
-        saveUserDataToLocal(userData);
+        try {
+          const userData = await getUserData(user.uid);
+          setUserData(userData);
+          // Save to local storage for offline access
+          saveAuthToLocal(user);
+          saveUserDataToLocal(userData);
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+          setUserData(null);
+        }
       } else {
         setUserData(null);
         clearLocalAuth();
@@ -94,7 +100,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     return unsubscribe;
-  }, []);
+  }, [isOnline]);
 
   const signUp = async (
     email: string,
@@ -149,9 +155,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     hasRole,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
