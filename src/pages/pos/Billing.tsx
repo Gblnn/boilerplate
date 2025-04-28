@@ -1,6 +1,5 @@
 import IndexDropDown from "@/components/index-dropdown";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Icons } from "@/components/ui/icons";
 import { useAuth } from "@/context/AuthContext";
 import { getAllProducts, getProductByBarcode } from "@/services/firebase/pos";
@@ -11,7 +10,7 @@ import {
 } from "@/services/pos/offlineProducts";
 import { BillItem, Product } from "@/types/pos";
 import { AnimatePresence, motion } from "framer-motion";
-import { Box, MinusCircle } from "lucide-react";
+import { Box, Check, MinusCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -234,7 +233,10 @@ export const Billing = () => {
           </div>
 
           {/* Scrollable Items List */}
-          <div className="flex-1 overflow-y-auto p-2">
+          <div
+            style={{ height: "100svh" }}
+            className="flex-1 overflow-y-auto p-2 "
+          >
             <AnimatePresence>
               {items.map((item, index) => (
                 <motion.div
@@ -363,12 +365,31 @@ export const Billing = () => {
 
               {/* Tax Toggle and Amount */}
               <div className="flex items-center justify-between text-gray-800 dark:text-gray-200">
-                <div className="flex items-center gap-2">
-                  <Checkbox
+                <div
+                  style={{ alignItems: "center" }}
+                  className="flex items-center gap-2"
+                >
+                  <div
+                    onClick={() => setIsTaxEnabled(!isTaxEnabled)}
+                    style={{
+                      display: "flex",
+                      width: "1.25rem",
+                      height: "1.25rem",
+                      borderRadius: "0.25rem",
+                      background: "rgba(100 100 100/ 20%)",
+
+                      justifyContent: "center",
+                      alignItems: "center",
+                      transition: "0.3s",
+                    }}
+                  >
+                    {isTaxEnabled && <Check width={"0.8rem"} />}
+                  </div>
+                  {/* <Checkbox
                     checked={isTaxEnabled}
                     onCheckedChange={() => setIsTaxEnabled(!isTaxEnabled)}
                     id="tax-toggle"
-                  />
+                  /> */}
                   <label
                     htmlFor="tax-toggle"
                     className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer"
@@ -387,7 +408,7 @@ export const Billing = () => {
             </div>
 
             {/* Payment Methods */}
-            <div className="space-y-2">
+            <div style={{}} className="">
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant="default"

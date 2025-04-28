@@ -19,7 +19,7 @@ import UserManagement from "./pages/user-management";
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="app-theme">
+    <ThemeProvider>
       <Router>
         <AuthProvider>
           <Routes>
