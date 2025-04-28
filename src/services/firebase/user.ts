@@ -1,13 +1,12 @@
 import {
-  getFirestore,
   doc,
-  setDoc,
   getDoc,
+  getFirestore,
   onSnapshot,
+  setDoc,
 } from "firebase/firestore";
-import { User } from "firebase/auth";
-import { UserData, UserRole } from "../../types/auth";
 import app from "../../config/firebase";
+import { UserData, UserRole } from "../../types/auth";
 
 const db = getFirestore(app);
 
