@@ -1,4 +1,5 @@
 import Directive from "@/components/directive";
+import IndexDropDown from "@/components/index-dropdown";
 // import IndexDropDown from "@/components/index-dropdown";
 import { Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -19,7 +20,7 @@ export default function Index() {
           style={{
             display: "flex",
             border: "",
-            height: "4rem",
+            height: "",
             alignItems: "center",
             justifyContent: "space-between",
             boxShadow: "1px 1px 20px rgba(0 0 0/ 20%)",
@@ -29,15 +30,16 @@ export default function Index() {
           <div
             style={{
               display: "flex",
-              border: "1px solid red",
+              // border: "1px solid red",
+              padding: "0.75rem",
               width: "100%",
-              marginLeft: "1rem",
-              marginRight: "1rem",
+
               justifyContent: "space-between",
+              alignItems: "center",
             }}
           >
-            <p>mk</p>
-            {/* <IndexDropDown /> */}
+            <p></p>
+            <IndexDropDown />
           </div>
         </div>
         <div

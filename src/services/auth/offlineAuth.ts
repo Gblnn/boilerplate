@@ -1,21 +1,10 @@
-import { User } from "firebase/auth";
 import { UserData } from "../../types/auth";
 
-const AUTH_STORAGE_KEY = "auth_user_data";
 const USER_DATA_STORAGE_KEY = "user_data";
 
-export const saveAuthToLocal = (user: User | null) => {
-  if (user) {
-    const authData = {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      photoURL: user.photoURL,
-    };
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
-  } else {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-  }
+export const saveAuthToLocal = () => {
+  // We don't need to save this separately anymore
+  // The data will be saved in saveUserDataToLocal
 };
 
 export const saveUserDataToLocal = (userData: UserData | null) => {
@@ -27,16 +16,24 @@ export const saveUserDataToLocal = (userData: UserData | null) => {
 };
 
 export const getLocalAuthData = () => {
-  const authData = localStorage.getItem(AUTH_STORAGE_KEY);
-  return authData ? JSON.parse(authData) : null;
+  // Get the basic auth data from the full user data
+  const userData = getLocalUserData();
+  if (!userData) return null;
+
+  return {
+    uid: userData.uid,
+    email: userData.email,
+    displayName: userData.displayName,
+    photoURL: null,
+  };
 };
 
 export const getLocalUserData = () => {
   const userData = localStorage.getItem(USER_DATA_STORAGE_KEY);
-  return userData ? JSON.parse(userData) : null;
+  if (!userData) return null;
+  return JSON.parse(userData) as UserData;
 };
 
 export const clearLocalAuth = () => {
-  localStorage.removeItem(AUTH_STORAGE_KEY);
   localStorage.removeItem(USER_DATA_STORAGE_KEY);
 };

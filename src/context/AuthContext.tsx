@@ -1,25 +1,23 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import {
-  User,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithPopup,
-} from "firebase/auth";
-import { auth } from "../config/firebase";
-import { UserData, UserRole } from "../types/auth";
-import { createUserData, getUserData } from "../services/firebase/user";
-import {
-  saveAuthToLocal,
-  saveUserDataToLocal,
-  getLocalAuthData,
-  getLocalUserData,
-  clearLocalAuth,
-} from "../services/auth/offlineAuth";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
 import { subscribeToUserData } from "@/services/firebase/user";
+import {
+  GoogleAuthProvider,
+  User,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+} from "firebase/auth";
+import { createContext, useContext, useEffect, useState } from "react";
+import { auth } from "../config/firebase";
+import {
+  clearLocalAuth,
+  getLocalUserData,
+  saveUserDataToLocal,
+} from "../services/auth/offlineAuth";
+import { createUserData, getUserData } from "../services/firebase/user";
+import { UserData, UserRole } from "../types/auth";
 
 interface AuthContextType {
   user: User | null;
@@ -44,16 +42,52 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  // First, get the cached user data
+  const cachedUserData = getLocalUserData();
+
+  const createMinimalUser = (data: UserData): User =>
+    ({
+      uid: data.uid,
+      email: data.email,
+      displayName: data.displayName,
+      // Add required User properties with default values
+      emailVerified: false,
+      isAnonymous: false,
+      metadata: {},
+      providerData: [],
+      refreshToken: "",
+      tenantId: null,
+      phoneNumber: null,
+      photoURL: null,
+      providerId: "firebase",
+      delete: async () => {
+        throw new Error("Not implemented");
+      },
+      getIdToken: async () => "",
+      getIdTokenResult: async () => ({
+        token: "",
+        claims: {},
+        authTime: "",
+        issuedAtTime: "",
+        expirationTime: "",
+        signInProvider: null,
+        signInSecondFactor: null,
+      }),
+      reload: async () => {},
+      toJSON: () => ({}),
+    } as unknown as User); // Use double type assertion to handle complex Firebase types
+
   const [user, setUser] = useState<User | null>(() => {
     // Initialize with cached data immediately
-    const localAuthData = getLocalAuthData();
-    return localAuthData as User | null;
+    if (!cachedUserData) return null;
+    // Create a minimal User object from UserData
+    return createMinimalUser(cachedUserData);
   });
-  const [userData, setUserData] = useState<UserData | null>(() => {
-    // Initialize with cached user data immediately
-    return getLocalUserData();
-  });
-  const [loading, setLoading] = useState(false); // Start with false since we have initial state
+
+  const [userData, setUserData] = useState<UserData | null>(
+    () => cachedUserData
+  );
+  const [loading, setLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   // Handle online/offline status
@@ -72,14 +106,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Initialize auth state
   useEffect(() => {
-    // If offline, we're already using cached data, no need to do anything
     if (!isOnline) {
       console.log("Offline mode: using cached data");
+      if (cachedUserData) {
+        console.log("Using cached user data:", cachedUserData);
+        setUserData(cachedUserData);
+        setUser((prev) => prev || createMinimalUser(cachedUserData));
+      }
       return;
     }
 
     console.log("Setting up auth state listener");
-    // Online mode: listen to Firebase auth state
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log(
         "Auth state changed:",
@@ -88,13 +125,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (firebaseUser) {
         try {
           console.log("Attempting to fetch user data for:", firebaseUser.uid);
-          // First, get the initial user data
           const initialUserData = await getUserData(firebaseUser.uid);
           console.log("Received initial user data:", initialUserData);
 
           if (initialUserData) {
             setUserData(initialUserData);
             saveUserDataToLocal(initialUserData);
+            setUser(firebaseUser);
           } else {
             console.warn(
               "No user data found in Firestore for uid:",
@@ -102,36 +139,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             );
           }
 
-          // Then subscribe to future updates
           const unsubscribeUserData = subscribeToUserData(
             firebaseUser.uid,
             (freshUserData) => {
               console.log("Received user data update:", freshUserData);
               if (freshUserData) {
-                // Only update if data is different
                 if (
                   JSON.stringify(freshUserData) !== JSON.stringify(userData)
                 ) {
                   setUserData(freshUserData);
                   saveUserDataToLocal(freshUserData);
+                  setUser(
+                    (prev) =>
+                      ({
+                        ...prev!,
+                        displayName: freshUserData.displayName,
+                        email: freshUserData.email,
+                      } as User)
+                  );
                 }
               }
             }
           );
 
-          // Only update if user data is different
-          if (JSON.stringify(firebaseUser) !== JSON.stringify(user)) {
-            setUser(firebaseUser);
-            saveAuthToLocal(firebaseUser);
-          }
-
-          // Clean up user data subscription when auth state changes
           return () => unsubscribeUserData();
         } catch (error) {
           console.error("Error fetching user data:", error);
-          // Keep using cached data if fetch fails
-          if (!userData) {
+          // If we have cached data, use it as fallback
+          if (cachedUserData) {
+            setUserData(cachedUserData);
+            setUser((prev) => prev || createMinimalUser(cachedUserData));
+          } else {
             setUserData(null);
+            setUser(null);
           }
         }
       } else {
@@ -177,21 +217,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         email,
         password
       );
+
       console.log("User signed in, fetching user data");
-      // Fetch user data immediately after successful sign in
       const userDataResult = await getUserData(userCredential.user.uid);
       console.log("Fetched user data after sign in:", userDataResult);
+
       if (userDataResult) {
         setUserData(userDataResult);
         saveUserDataToLocal(userDataResult);
+        setUser(userCredential.user);
       } else {
         console.warn(
           "No user data found after sign in for uid:",
           userCredential.user.uid
         );
+        saveUserDataToLocal(null);
+        setUserData(null);
+        setUser(null);
       }
     } catch (error) {
       console.error("Error during sign in:", error);
+      if (!isOnline) {
+        const cachedUserData = getLocalUserData();
+        if (cachedUserData) {
+          setUser({
+            uid: cachedUserData.uid,
+            email: cachedUserData.email,
+            displayName: cachedUserData.displayName,
+          } as User);
+          setUserData(cachedUserData);
+          return;
+        }
+      }
       throw error;
     } finally {
       setLoading(false);
@@ -202,11 +259,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
-      const userData = await getUserData(userCredential.user.uid);
-      if (!userData) {
-        await createUserData(userCredential.user, "user");
+      const result = await signInWithPopup(auth, provider);
+      setUser(result.user);
+
+      // Check if user data exists, if not create it
+      const existingUserData = await getUserData(result.user.uid);
+      if (!existingUserData) {
+        await createUserData(result.user, "user");
       }
+
+      const userDataResult = await getUserData(result.user.uid);
+      if (userDataResult) {
+        setUserData(userDataResult);
+        saveUserDataToLocal(userDataResult);
+      }
+    } catch (error) {
+      console.error("Error during Google sign in:", error);
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -216,7 +285,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(true);
     try {
       await signOut(auth);
+      setUser(null);
+      setUserData(null);
       clearLocalAuth();
+    } catch (error) {
+      console.error("Error during logout:", error);
+      throw error;
     } finally {
       setLoading(false);
     }

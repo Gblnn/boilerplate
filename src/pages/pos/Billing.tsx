@@ -1,8 +1,8 @@
+import IndexDropDown from "@/components/index-dropdown";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Icons } from "@/components/ui/icons";
 import { useAuth } from "@/context/AuthContext";
-import { getLocalAuthData } from "@/services/auth/offlineAuth";
 import { getAllProducts, getProductByBarcode } from "@/services/firebase/pos";
 import {
   getCachedProducts,
@@ -11,15 +11,13 @@ import {
 } from "@/services/pos/offlineProducts";
 import { BillItem, Product } from "@/types/pos";
 import { AnimatePresence, motion } from "framer-motion";
-import { Barcode, Box, MinusCircle } from "lucide-react";
+import { Box, MinusCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export const Billing = () => {
-  const { user, isOnline } = useAuth();
-  const localAuthData = getLocalAuthData();
-  // const localUserData = getLocalUserData();
-  const effectiveUser = user || localAuthData;
+  const { user, userData, isOnline } = useAuth();
+  const effectiveUser = user || (userData ? { uid: userData.uid } : null);
 
   const [items, setItems] = useState<BillItem[]>([]);
   const [barcode, setBarcode] = useState("");
@@ -225,9 +223,14 @@ export const Billing = () => {
             >
               Billing
             </h2>
-            <button>
-              <Box />
-            </button>
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+            >
+              <button>
+                <Box />
+              </button>
+              <IndexDropDown />
+            </div>
           </div>
 
           {/* Scrollable Items List */}
@@ -326,7 +329,6 @@ export const Billing = () => {
                 }}
                 className=""
               >
-                <Barcode />
                 <input
                   ref={barcodeInputRef}
                   type="text"

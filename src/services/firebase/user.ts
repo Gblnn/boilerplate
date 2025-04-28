@@ -4,6 +4,10 @@ import {
   getFirestore,
   onSnapshot,
   setDoc,
+  collection,
+  getDocs,
+  updateDoc,
+  deleteDoc,
 } from "firebase/firestore";
 import app from "../../config/firebase";
 import { UserData, UserRole } from "../../types/auth";
@@ -11,14 +15,14 @@ import { UserData, UserRole } from "../../types/auth";
 const db = getFirestore(app);
 
 export const createUserData = async (
-  user: { uid: string; email: string | null },
+  user: { uid: string; email: string | null; displayName?: string | null },
   role: UserRole
 ): Promise<void> => {
   const userData: UserData = {
     uid: user.uid,
     email: user.email,
     role,
-    displayName: null,
+    displayName: user.displayName || null,
   };
   await setDoc(doc(db, "users", user.uid), userData);
 };
@@ -67,4 +71,27 @@ export const hasRole = (
   }
 
   return user.role === requiredRole;
+};
+
+export const getAllUsers = async (): Promise<UserData[]> => {
+  const usersRef = collection(db, "users");
+  const snapshot = await getDocs(usersRef);
+  return snapshot.docs.map((doc) => doc.data() as UserData);
+};
+
+export const updateUserData = async (
+  uid: string,
+  updates: Partial<Omit<UserData, "uid">>
+): Promise<void> => {
+  const userRef = doc(db, "users", uid);
+  await updateDoc(userRef, updates);
+};
+
+export const deleteUserData = async (uid: string) => {
+  try {
+    await deleteDoc(doc(db, "users", uid));
+  } catch (error) {
+    console.error("Error deleting user data:", error);
+    throw error;
+  }
 };

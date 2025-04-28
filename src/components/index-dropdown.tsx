@@ -1,159 +1,128 @@
-// import { useAuth } from "../context/AuthContext";
-// import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
-// import { LoaderCircle, LogOut, RefreshCcw, UserX } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
+import { LoaderCircle, LogOut, RefreshCcw, UserX } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+} from "./ui/dropdown-menu";
+import { useNavigate } from "react-router-dom";
+import { Avatar, AvatarFallback } from "./ui/avatar";
+import { useState } from "react";
+import { toast } from "sonner";
 
-// import {
-//   DropdownMenu,
-//   DropdownMenuContent,
-//   DropdownMenuGroup,
-//   DropdownMenuItem,
-// } from "./ui/dropdown-menu";
-// import { useNavigate } from "react-router-dom";
+interface Props {
+  className?: string;
+  onLogout?: () => Promise<void>;
+}
 
-// interface Props {
-//   trigger?: any;
-//   onExport?: any;
-//   onAccess?: any;
-//   onArchives?: any;
-//   onUpload?: any;
-//   onInbox?: any;
-//   className?: any;
-//   onLogout?: any;
-//   onProfile?: any;
-//   isOnline?: boolean;
-//   allocated_hours?: number;
-//   name?: string;
-// }
+export default function IndexDropDown({ className, onLogout }: Props) {
+  const { userData, isOnline, logout } = useAuth();
+  const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-// export default function IndexDropDown(props: Props) {
-//   const { displayName, email } = useAuth();
-//   const usenavigate = useNavigate();
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      if (onLogout) {
+        await onLogout();
+      } else {
+        await logout();
+      }
+      // Redirect to login page after successful logout
+      navigate("/login");
+    } catch (error) {
+      console.error("Error during logout:", error);
+      toast.error("Failed to logout. Please try again.");
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
-//   return (
-//     <>
-//       <DropdownMenu>
-//         <DropdownMenuTrigger
-//           className={props.className}
-//           style={{
-//             outline: "none",
-//             backdropFilter: "none",
-//             display: "flex",
-//             border: "",
-//             justifyContent: "center",
-//             alignItems: "center",
-//             borderRadius: "50%",
-//           }}
-//         >
-//           {displayName ? (
-//             <LazyLoader background="rgba(100 100 100/ 0%)" name={displayName} />
-//           ) : !props.isOnline ? (
-//             <UserX style={{ opacity: 0.5 }} />
-//           ) : (
-//             <LoaderCircle
-//               className="animate-spin"
-//               style={{ margin: "0.14rem" }}
-//             />
-//           )}
-//         </DropdownMenuTrigger>
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase();
+  };
 
-//         <DropdownMenuContent
-//           style={{ margin: "0.25rem", marginRight: "1.25rem", width: "15rem" }}
-//         >
-//           <DropdownMenuGroup>
-//             <DropdownMenuItem
-//               onClick={() => {
-//                 usenavigate("/profile");
-//               }}
-//               style={{
-//                 width: "100%",
-//                 display: "",
-//                 border: "",
-//                 justifyContent: "",
-//                 flexFlow: "",
-//                 paddingTop: "1rem",
-//                 paddingBottom: "1rem",
-//               }}
-//             >
-//               <div
-//                 style={{
-//                   border: "",
-//                   width: "100%",
-//                   display: "flex",
-//                   alignItems: "center",
-//                   gap: "0.75rem",
-//                 }}
-//               >
-//                 <LazyLoader
-//                   gradient
-//                   fontSize="1.25rem"
-//                   height="3rem"
-//                   width="3rem"
-//                   name={userEmail || ""}
-//                 />
-//                 <div style={{ border: "" }}>
-//                   <p
-//                     style={{
-//                       border: "",
-//                       fontSize: "1.05rem",
-//                       fontWeight: "600",
-//                     }}
-//                   >
-//                     {userName?.split(" ")[0]}
-//                   </p>
-//                   <p
-//                     style={{
-//                       fontSize: "0.65rem",
-//                       opacity: "0.75",
-//                       fontWeight: 800,
-//                       color: "dodgerblue",
-//                     }}
-//                   >
-//                     {userEmail}
-//                   </p>
-//                   {allocatedHours && (
-//                     <p
-//                       style={{
-//                         fontSize: "0.7rem",
-//                         background: "rgba(100 100 100/ 20%)",
-//                         paddingLeft: "0.5rem",
-//                         paddingRight: "0.5rem",
-//                         borderRadius: "0.5rem",
-//                       }}
-//                     >
-//                       <b>Allocated Hours</b> {allocatedHours}
-//                     </p>
-//                   )}
-//                 </div>
-//               </div>
-//             </DropdownMenuItem>
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className={className}
+        style={{
+          outline: "none",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          borderRadius: "50%",
+        }}
+      >
+        {userData?.displayName ? (
+          <Avatar>
+            <AvatarFallback>{getInitials(userData.displayName)}</AvatarFallback>
+          </Avatar>
+        ) : !isOnline ? (
+          <UserX className="opacity-50" />
+        ) : (
+          <LoaderCircle className="animate-spin m-0.5" />
+        )}
+      </DropdownMenuTrigger>
 
-//             <hr style={{ marginTop: "0.25rem", marginBottom: "0.25rem" }} />
+      <DropdownMenuContent className="w-60 mr-5 mt-1">
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            onClick={() => navigate("/profile")}
+            className="p-4 cursor-pointer"
+          >
+            <div className="flex items-center gap-3 w-full">
+              <Avatar className="h-12 w-12">
+                <AvatarFallback className="text-lg">
+                  {userData?.displayName
+                    ? getInitials(userData.displayName)
+                    : "?"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col min-w-0">
+                <p className="text-base font-semibold truncate">
+                  {userData?.displayName || "No name"}
+                </p>
+                <p className="text-xs text-primary font-semibold opacity-75 truncate">
+                  {userData?.email}
+                </p>
+                <span className="inline-flex items-center rounded-full px-2 py-0.5 mt-1 text-xs font-medium bg-primary/10 text-primary">
+                  {userData?.role}
+                </span>
+              </div>
+            </div>
+          </DropdownMenuItem>
 
-//             <DropdownMenuItem
-//               onClick={() => window.location.reload()}
-//               style={{ width: "100%" }}
-//             >
-//               <RefreshCcw className="mr-2 " color="dodgerblue" />
-//               <span style={{ width: "100%" }}>Force Reload</span>
-//             </DropdownMenuItem>
+          <div className="h-px bg-border my-1" />
 
-//             {/* {props.onProfile && (
-//               <DropdownMenuItem onClick={props.onProfile}>
-//                 <User className="mr-2" color="dodgerblue" />
-//                 <span style={{ width: "100%" }}>Profile</span>
-//               </DropdownMenuItem>
-//             )} */}
+          <DropdownMenuItem
+            onClick={() => window.location.reload()}
+            className="cursor-pointer"
+          >
+            <RefreshCcw className="mr-2 h-4 w-4 text-primary" />
+            <span>Force Reload</span>
+          </DropdownMenuItem>
 
-//             <DropdownMenuItem
-//               onClick={props.onLogout}
-//               style={{ width: "100%" }}
-//             >
-//               <LogOut className="mr-2 " color="salmon" />
-//               <span style={{ width: "100%" }}>Logout</span>
-//             </DropdownMenuItem>
-//           </DropdownMenuGroup>
-//         </DropdownMenuContent>
-//       </DropdownMenu>
-//     </>
-//   );
-// }
+          <DropdownMenuItem
+            onClick={handleLogout}
+            className="cursor-pointer"
+            disabled={isLoggingOut}
+          >
+            {isLoggingOut ? (
+              <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <LogOut className="mr-2 h-4 w-4 text-destructive" />
+            )}
+            <span>{isLoggingOut ? "Logging out..." : "Logout"}</span>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
