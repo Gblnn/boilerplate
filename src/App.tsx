@@ -16,6 +16,7 @@ import { Unauthorized } from "./pages/Unauthorized";
 import { Billing } from "./pages/pos/Billing";
 import { Inventory } from "./pages/pos/Inventory";
 import UserManagement from "./pages/user-management";
+import { RoleProtectedRoute } from "./components/common/RoleProtectedRoute";
 
 function App() {
   return (
@@ -38,25 +39,32 @@ function App() {
             <Route
               path="/index"
               element={
-                // <RoleProtectedRoute allowedRoles={["admin"]}>
-                <MainLayout>
-                  <Index />
-                </MainLayout>
-                // </RoleProtectedRoute>
+                <RoleProtectedRoute allowedRoles={["admin"]}>
+                  <MainLayout>
+                    <Index />
+                  </MainLayout>
+                </RoleProtectedRoute>
               }
             />
 
-            <Route path="/user-management" element={<UserManagement />} />
+            <Route
+              path="/user-management"
+              element={
+                <RoleProtectedRoute allowedRoles={["admin"]}>
+                  <UserManagement />
+                </RoleProtectedRoute>
+              }
+            />
 
             {/* Cashier routes */}
             <Route
               path="/billing"
               element={
-                // <RoleProtectedRoute allowedRoles={["cashier", "admin"]}>
-                <MainLayout>
-                  <Billing />
-                </MainLayout>
-                // </RoleProtectedRoute>
+                <RoleProtectedRoute allowedRoles={["cashier", "admin"]}>
+                  <MainLayout>
+                    <Billing />
+                  </MainLayout>
+                </RoleProtectedRoute>
               }
             />
 
@@ -64,11 +72,11 @@ function App() {
             <Route
               path="/inventory"
               element={
-                // <RoleProtectedRoute allowedRoles={["admin"]}>
-                <MainLayout>
-                  <Inventory />
-                </MainLayout>
-                // </RoleProtectedRoute>
+                <RoleProtectedRoute allowedRoles={["admin"]}>
+                  <MainLayout>
+                    <Inventory />
+                  </MainLayout>
+                </RoleProtectedRoute>
               }
             />
 

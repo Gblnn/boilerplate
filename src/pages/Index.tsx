@@ -1,7 +1,14 @@
 import Directive from "@/components/directive";
 import IndexDropDown from "@/components/index-dropdown";
 // import IndexDropDown from "@/components/index-dropdown";
-import { Book, Box, DollarSign, Truck, Users } from "lucide-react";
+import {
+  Book,
+  Box,
+  DollarSign,
+  Ticket,
+  Truck,
+  UserRoundCog,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export default function Index() {
@@ -40,7 +47,20 @@ export default function Index() {
             }}
           >
             <p style={{ fontSize: "1.5rem", fontWeight: 600 }}>PointSale</p>
-            <IndexDropDown />
+            <div className="flex items-center gap-2">
+              <button
+                style={{
+                  fontSize: "0.8rem",
+                  paddingLeft: "1rem",
+                  paddingRight: "1rem",
+                }}
+                onClick={() => navigate("/user-management")}
+              >
+                <UserRoundCog width={"1.25rem"} />
+                Users
+              </button>
+              <IndexDropDown />
+            </div>
           </div>
         </div>
         <div
@@ -54,30 +74,35 @@ export default function Index() {
             gap: "0.5rem",
           }}
         >
-          <Directive
+          {/* <Directive
             onClick={() => navigate("/user-management")}
             title={"Manage Users"}
             icon={<Users width={"1.25rem"} />}
-          />
+          /> */}
           <Directive
             onClick={() => navigate("/billing")}
             title={"Billing"}
-            icon={<DollarSign width={"1.25rem"} />}
+            icon={<DollarSign />}
           />
           <Directive
             onClick={() => navigate("/inventory")}
             title={"Inventory"}
-            icon={<Box width={"1.25rem"} />}
+            icon={<Box />}
           />
           <Directive
-            onClick={() => navigate("/billing")}
+            onClick={() => navigate("/suppliers")}
             title={"Suppliers"}
-            icon={<Truck width={"1.25rem"} />}
+            icon={<Truck />}
           />
           <Directive
-            onClick={() => navigate("/billing")}
+            onClick={() => navigate("/credit-book")}
             title={"Credit Book"}
-            icon={<Book width={"1.25rem"} />}
+            icon={<Book />}
+          />
+          <Directive
+            onClick={() => navigate("/bills")}
+            title={"Bills"}
+            icon={<Ticket />}
           />
         </div>
       </div>
