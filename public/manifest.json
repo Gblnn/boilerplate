@@ -1,0 +1,46 @@
+{
+    "theme_color":"#000000",
+    "background_color":"#000000",
+    "icons":[
+        {
+            "purpose":"maskable",
+            "sizes":"512x512",
+            "src":"icon512_maskable.png",
+            "type":"image/png"
+        },
+        {
+            "purpose":"any",
+            "sizes":"512x512",
+            "src":"icon512_maskable.png",
+            "type":"image/png"
+        }
+        ],
+    "orientation":"any",
+    "display":"standalone",
+    "dir":"auto",
+    "lang":"en-US",
+    "name":"Arc",
+    "short_name":"Arc",
+    "start_url":"https://pointsale.netlify.app",
+    "scope":"https://pointsale.netlify.app",
+    "description":"Maintain personal records and get notified about important dates",
+    "screenshots": [    
+   {
+
+     "src": "/Screenshots/screenshot-wide.png",
+      "sizes": "1915x902",
+      "type": "image/svg",
+      "form_factor": "wide",
+      "label": "Application"
+    },
+    {
+
+        "src": "/Screenshots/screenshot-mobile.png",
+         "sizes": "442x790",
+         "type": "image/svg",
+         
+         "label": "Application"
+    }
+ ]
+ 
+}

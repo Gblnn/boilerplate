@@ -25,7 +25,14 @@ import {
 } from "@/services/pos/offlineProducts";
 import { BillItem, Customer, CustomerPurchase, Product } from "@/types/pos";
 import { AnimatePresence, motion } from "framer-motion";
-import { Box, Check, LoaderCircle, MinusCircle, UserPlus } from "lucide-react";
+import {
+  Barcode,
+  Box,
+  Check,
+  LoaderCircle,
+  MinusCircle,
+  UserPlus,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -927,8 +934,16 @@ export const Billing = () => {
                 >
                   <div>
                     <h3 className="font-medium">{product.name}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Barcode: {product.barcode}
+                    <p
+                      style={{
+                        display: "flex",
+                        gap: "0.25rem",
+                        alignItems: "center",
+                      }}
+                      className="text-sm text-gray-500 dark:text-gray-400"
+                    >
+                      <Barcode width={"1rem"} />
+                      {product.barcode}
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
