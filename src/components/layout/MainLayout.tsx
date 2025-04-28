@@ -1,32 +1,19 @@
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Icons } from "@/components/ui/icons";
-
 interface MainLayoutProps {
   children: React.ReactNode;
 }
 
 export const MainLayout = ({ children }: MainLayoutProps) => {
-  const { user, userData, logout } = useAuth();
-  const navigate = useNavigate();
+  // const {  logout } = useAuth();
+  // const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate("/login");
-    } catch (error) {
-      console.error("Failed to logout:", error);
-    }
-  };
+  // const handleLogout = async () => {
+  //   try {
+  //     await logout();
+  //     navigate("/login");
+  //   } catch (error) {
+  //     console.error("Failed to logout:", error);
+  //   }
+  // };
 
   return (
     <div style={{}} className="">
