@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -15,6 +16,7 @@ import {
   getProductByBarcode,
   searchCustomers,
   updateCustomerPurchaseStats,
+  updateProductStock,
 } from "@/services/firebase/pos";
 import {
   getCachedProducts,
@@ -23,9 +25,17 @@ import {
 } from "@/services/pos/offlineProducts";
 import { BillItem, Customer, CustomerPurchase, Product } from "@/types/pos";
 import { AnimatePresence, motion } from "framer-motion";
-import { Box, Check, MinusCircle } from "lucide-react";
+import { Box, Check, LoaderCircle, MinusCircle, UserPlus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  getCachedCustomers,
+  saveCustomersToCache,
+  updateCachedCustomer,
+} from "@/services/pos/offlineCustomers";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/config/firebase";
+import Back from "@/components/back";
 
 export const Billing = () => {
   const { user, userData, isOnline } = useAuth();
@@ -61,6 +71,9 @@ export const Billing = () => {
   );
   const customerInputRef = useRef<HTMLInputElement>(null);
   const customerSuggestionsRef = useRef<HTMLDivElement>(null);
+  const [customersCache, setCustomersCache] = useState<
+    Record<string, Customer>
+  >({});
 
   // Initialize products cache from localStorage and fetch fresh data if online
   useEffect(() => {
@@ -100,6 +113,37 @@ export const Billing = () => {
       initializeProducts();
     }
   }, [effectiveUser, isOnline]);
+
+  // Initialize customers cache from localStorage and fetch fresh data if online
+  useEffect(() => {
+    const initializeCustomers = async () => {
+      try {
+        // Load from cache first
+        const cachedCustomers = getCachedCustomers();
+        setCustomersCache(cachedCustomers);
+
+        // If online, fetch fresh data
+        if (isOnline) {
+          const customersRef = collection(db, "customers");
+          const snapshot = await getDocs(customersRef);
+          const customers: Record<string, Customer> = {};
+
+          snapshot.forEach((doc) => {
+            customers[doc.id] = { id: doc.id, ...doc.data() } as Customer;
+          });
+
+          setCustomersCache(customers);
+          saveCustomersToCache(customers);
+        }
+      } catch (error) {
+        console.error("Error initializing customers:", error);
+        toast.error("Failed to load customers");
+      } finally {
+      }
+    };
+
+    initializeCustomers();
+  }, [isOnline]);
 
   // Focus barcode input on mount and after each scan
   useEffect(() => {
@@ -203,9 +247,23 @@ export const Billing = () => {
     setCustomerName(value);
     if (value.length > 0) {
       try {
-        const customers = await searchCustomers(value);
-        setCustomerSuggestions(customers);
-        setShowCustomerSuggestions(true);
+        // First check cache
+        const cachedMatches = Object.values(customersCache).filter((customer) =>
+          customer.name.toLowerCase().includes(value.toLowerCase())
+        );
+
+        if (cachedMatches.length > 0) {
+          setCustomerSuggestions(cachedMatches.slice(0, 5));
+          setShowCustomerSuggestions(true);
+          return;
+        }
+
+        // If no matches in cache and online, search database
+        if (isOnline) {
+          const dbMatches = await searchCustomers(value);
+          setCustomerSuggestions(dbMatches);
+          setShowCustomerSuggestions(true);
+        }
       } catch (error) {
         console.error("Error searching customers:", error);
         toast.error("Failed to search customers");
@@ -228,10 +286,20 @@ export const Billing = () => {
     if (!customerName.trim()) return;
 
     try {
+      setLoading(true);
       const newCustomer = await createCustomer(customerName.trim());
       setSelectedCustomer(newCustomer);
       setCustomerName(newCustomer.name);
+
+      // Update cache
+      updateCachedCustomer(newCustomer);
+      setCustomersCache((prev) => ({
+        ...prev,
+        [newCustomer.id]: newCustomer,
+      }));
+
       toast.success("New customer added");
+      setLoading(false);
     } catch (error) {
       console.error("Error creating customer:", error);
       toast.error("Failed to create customer");
@@ -397,8 +465,52 @@ export const Billing = () => {
         userName: userData?.displayName || "Unknown",
       };
 
-      await createCustomerPurchase(purchase);
-      await updateCustomerPurchaseStats(selectedCustomer.id, total);
+      // Update inventory for each item
+      for (const item of items) {
+        // Update local cache first for instant UI update
+        const product = productsCache[item.barcode];
+        if (product) {
+          const updatedProduct = {
+            ...product,
+            stock: Math.max(0, product.stock - item.quantity),
+          };
+
+          // Update in-memory cache
+          setProductsCache((prev) => ({
+            ...prev,
+            [item.barcode]: updatedProduct,
+          }));
+
+          // Update localStorage cache
+          updateCachedProduct(updatedProduct);
+
+          if (isOnline) {
+            // Update database
+            try {
+              await updateProductStock(item.productId, item.quantity);
+            } catch (error) {
+              console.error("Error updating product stock:", error);
+              toast.error("Failed to update product stock in database");
+            }
+          }
+        }
+      }
+
+      // Create purchase record and update customer stats
+      if (isOnline) {
+        await createCustomerPurchase(purchase);
+        await updateCustomerPurchaseStats(selectedCustomer.id, total);
+      } else {
+        // In offline mode, store the purchase in local storage
+        const offlinePurchases = JSON.parse(
+          localStorage.getItem("offlinePurchases") || "[]"
+        );
+        offlinePurchases.push(purchase);
+        localStorage.setItem(
+          "offlinePurchases",
+          JSON.stringify(offlinePurchases)
+        );
+      }
 
       toast.success("Purchase recorded successfully");
       setItems([]);
@@ -416,8 +528,14 @@ export const Billing = () => {
   const tax = isTaxEnabled ? subtotal * 0.05 : 0; // 5% tax when enabled
   const total = subtotal + tax;
 
+  const handleClearItems = () => {
+    if (items.length === 0) return;
+    setItems([]);
+    toast.success("All items cleared from bill");
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200">
       {/* Main Content */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Left Side - Items List */}
@@ -434,12 +552,15 @@ export const Billing = () => {
             }}
             className="px-3 py-2 "
           >
-            <h2
-              style={{ marginLeft: "0.75rem" }}
-              className="text-lg font-semibold"
-            >
-              Billing
-            </h2>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {userData?.role === "admin" && <Back />}
+              <h2
+                style={{ marginLeft: "0.75rem" }}
+                className="text-lg font-semibold "
+              >
+                Billing
+              </h2>
+            </div>
             <div
               style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
             >
@@ -533,22 +654,29 @@ export const Billing = () => {
           </div>
           {/* Bottom Bar with Barcode Input */}
           <div
-            style={{ boxShadow: "1px 1px 10px rgba(0, 0, 0, 0.2)" }}
-            className="sticky bottom-0 w-full  border-t"
+            style={{
+              boxShadow: "1px 1px 10px rgba(0, 0, 0, 0.2)",
+              borderTop: "1px solid rgba(100 100 100/ 20%)",
+              borderBottom: "1px solid rgba(100 100 100/ 20%)",
+            }}
+            className="sticky bottom-0 w-full"
           >
             <form
               onSubmit={handleBarcodeSubmit}
               className="p-3 space-y-3"
-              style={{ borderBottom: "1px solid rgba(100 100 100/ 50%)" }}
+              // style={{ borderBottom: "1px solid rgba(100 100 100/ 50%)" }}
             >
               {/* Customer Input */}
-              <div className="relative">
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+                className="relative"
+              >
                 <input
                   ref={customerInputRef}
                   type="text"
                   value={customerName}
                   onChange={(e) => handleCustomerSearch(e.target.value)}
-                  placeholder="Enter customer name..."
+                  placeholder="Enter customer name"
                   className="w-full pl-8 pr-3 py-2 border rounded focus:outline-none focus:border-blue-500 text-sm"
                 />
                 {/* <Icons.user className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" /> */}
@@ -572,12 +700,23 @@ export const Billing = () => {
                     ))}
                   </div>
                 )}
-                {customerName && !selectedCustomer && (
+                {customerName && (
                   <button
+                    style={{
+                      paddingLeft: "1rem",
+                      paddingRight: "1rem",
+                      fontSize: "0.8rem",
+                      width: "10rem",
+                    }}
                     type="button"
                     onClick={handleCustomerCreate}
-                    className="absolute right-2 top-2 text-sm text-blue-500 hover:text-blue-600"
+                    className=" text-sm text-blue-500 hover:text-blue-600"
                   >
+                    {loading ? (
+                      <LoaderCircle className="animate-spin" width={"1rem"} />
+                    ) : (
+                      <UserPlus width={"1rem"} />
+                    )}
                     Add New
                   </button>
                 )}
@@ -626,10 +765,18 @@ export const Billing = () => {
 
         {/* Right Side - Summary and Actions */}
         <div className="md:w-[350px] bg-white dark:bg-gray-950 md:border-l dark:border-gray-700">
-          <div className="p-3">
+          <div className="p-3 flex gap-2 align-middle justify-between">
             <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
               Bill Summary
             </h3>
+            <Button
+              variant="outline"
+              onClick={handleClearItems}
+              disabled={items.length === 0}
+            >
+              <MinusCircle width={"1rem"} />
+              Clear Items
+            </Button>
           </div>
 
           <div className="p-3 space-y-4">
@@ -656,7 +803,6 @@ export const Billing = () => {
                       height: "1.25rem",
                       borderRadius: "0.25rem",
                       background: "rgba(100 100 100/ 20%)",
-
                       justifyContent: "center",
                       alignItems: "center",
                       transition: "0.3s",
@@ -664,11 +810,6 @@ export const Billing = () => {
                   >
                     {isTaxEnabled && <Check width={"0.8rem"} />}
                   </div>
-                  {/* <Checkbox
-                    checked={isTaxEnabled}
-                    onCheckedChange={() => setIsTaxEnabled(!isTaxEnabled)}
-                    id="tax-toggle"
-                  /> */}
                   <label
                     htmlFor="tax-toggle"
                     className="text-sm text-gray-600 dark:text-gray-400 cursor-pointer"
@@ -687,13 +828,16 @@ export const Billing = () => {
                 <span>Total</span>
                 <span>OMR {total.toFixed(3)}</span>
               </div>
+
+              {/* Clear Items Button */}
+              <div className="pt-2"></div>
             </div>
 
             {/* Payment Methods */}
             <div style={{}} className="">
               <div className="grid grid-cols-2 gap-2">
                 <Button
-                  variant="default"
+                  className="bg-gray-950 dark:bg-white text-white dark:text-gray-950"
                   onClick={() => handleCheckout("cash")}
                   disabled={loading || items.length === 0}
                 >
@@ -794,20 +938,22 @@ export const Billing = () => {
                       </p>
                       <p
                         className={`font-medium ${
-                          product.stock <= 5 ? "text-red-500" : "text-green-500"
+                          product.stock <= (product.minStock || 10)
+                            ? "text-red-500"
+                            : "text-green-500"
                         }`}
                       >
                         {product.stock}
                       </p>
                     </div>
-                    <div className="text-right">
+                    {/* <div className="text-right">
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         Price
                       </p>
                       <p className="font-medium">
                         OMR {product.price.toFixed(3)}
                       </p>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               ))}
@@ -846,6 +992,7 @@ export const Billing = () => {
               </div>
             </div>
           )}
+          <DialogDescription />
         </DialogContent>
       </Dialog>
     </div>

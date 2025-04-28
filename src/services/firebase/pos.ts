@@ -67,6 +67,22 @@ export const updateProduct = async (
   await updateDoc(doc(db, "products", id), data);
 };
 
+export const updateProductStock = async (
+  productId: string,
+  quantity: number
+) => {
+  const productRef = doc(db, "products", productId);
+  const productDoc = await getDoc(productRef);
+
+  if (productDoc.exists()) {
+    const product = productDoc.data() as Product;
+    const newStock = Math.max(0, product.stock - quantity);
+    await updateDoc(productRef, { stock: newStock });
+    return { ...product, stock: newStock };
+  }
+  throw new Error("Product not found");
+};
+
 // Bills
 export const createBill = async (
   items: BillItem[],
@@ -286,29 +302,60 @@ export const searchCustomers = async (
   searchTerm: string
 ): Promise<Customer[]> => {
   const customersRef = collection(db, "customers");
-  const q = query(
+  const searchTermLower = searchTerm.toLowerCase();
+
+  // First try exact match
+  const exactMatchQuery = query(
     customersRef,
-    where("name", ">=", searchTerm.toLowerCase()),
-    where("name", "<=", searchTerm.toLowerCase() + "\uf8ff"),
+    where("name", "==", searchTermLower),
+    limit(1)
+  );
+  const exactMatchSnapshot = await getDocs(exactMatchQuery);
+
+  if (!exactMatchSnapshot.empty) {
+    return exactMatchSnapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+          name: doc.data().name, // Keep original case from database
+        } as Customer)
+    );
+  }
+
+  // If no exact match, try partial match
+  const partialMatchQuery = query(
+    customersRef,
+    where("name", ">=", searchTermLower),
+    where("name", "<=", searchTermLower + "\uf8ff"),
     orderBy("name"),
     limit(5)
   );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(
-    (doc) => ({ id: doc.id, ...doc.data() } as Customer)
+  const partialMatchSnapshot = await getDocs(partialMatchQuery);
+  return partialMatchSnapshot.docs.map(
+    (doc) =>
+      ({
+        id: doc.id,
+        ...doc.data(),
+        name: doc.data().name, // Keep original case from database
+      } as Customer)
   );
 };
 
 export const createCustomer = async (name: string): Promise<Customer> => {
   const customersRef = collection(db, "customers");
   const newCustomer: Omit<Customer, "id"> = {
-    name: name.toLowerCase(),
+    name: name.toLowerCase(), // Store in lowercase for consistent searching
     totalPurchases: 0,
     totalSpent: 0,
     createdAt: new Date(),
   };
   const docRef = await addDoc(customersRef, newCustomer);
-  return { id: docRef.id, ...newCustomer };
+  return {
+    id: docRef.id,
+    ...newCustomer,
+    name: name, // Return with original case
+  };
 };
 
 export const updateCustomerPurchaseStats = async (

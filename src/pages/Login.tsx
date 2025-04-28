@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "./Login.css";
+import { toast } from "sonner";
 
 export const Login = () => {
   const [email, setEmail] = useState("");
@@ -30,6 +31,7 @@ export const Login = () => {
       await signIn(email, password);
     } catch (error) {
       console.error(error);
+      toast.error("Invalid email or password");
     } finally {
       setIsLoading(false);
     }
@@ -37,7 +39,10 @@ export const Login = () => {
 
   return (
     <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }}>
-      <div style={{ display: "flex", padding: "1.25rem", height: "100svh" }}>
+      <div
+        className="bg-white dark:bg-gray-950"
+        style={{ display: "flex", padding: "1.25rem", height: "100svh" }}
+      >
         <div
           className="desktop-only"
           style={{
@@ -173,7 +178,7 @@ export const Login = () => {
               <p />
               <button
                 onClick={handleSubmit}
-                className={isLoading ? "disabled" : ""}
+                disabled={isLoading}
                 style={{
                   background: "crimson",
                   color: "white",
@@ -183,17 +188,20 @@ export const Login = () => {
                   borderRadius: "0.5rem",
                   justifyContent: "center",
                   alignItems: "center",
-                  cursor: "pointer",
+                  cursor: isLoading ? "not-allowed" : "pointer",
                   border: "none",
-
                   fontWeight: "500",
+                  opacity: isLoading ? 0.7 : 1,
                 }}
               >
                 {isLoading ? (
-                  <Icons.spinner className="h-4 w-4 animate-spin" />
-                ) : null}
-                LOGIN
-                <Icons.chevronRight className="h-4 w-4" />
+                  <>
+                    <Icons.spinner className="h-4 w-4 animate-spin" />
+                    <span>Logging in...</span>
+                  </>
+                ) : (
+                  "LOGIN"
+                )}
               </button>
 
               {/* <button

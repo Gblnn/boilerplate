@@ -14,7 +14,7 @@ import {
 } from "@/services/firebase/user";
 import { UserData, UserRole } from "@/types/auth";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { Edit, Plus, Trash2, Users } from "lucide-react";
+import { Edit, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -132,14 +132,15 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="relative min-h-screen bg-background">
+    <div className="relative min-h-screen bg-white dark:bg-gray-950">
       <div className="flex flex-col h-screen">
         <div className="flex h-16 items-center justify-between border-b shadow-sm px-4">
           <div className="flex items-center gap-2">
             <Back />
-            <h1 className="text-xl font-semibold">User Management</h1>
+            <h1 style={{ fontSize: "1.25rem" }} className="">
+              Manage Users
+            </h1>
           </div>
-          <Users className="h-5 w-5" />
         </div>
 
         <div className="flex-1 p-4">

@@ -219,7 +219,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signIn = async (email: string, password: string) => {
-    setLoading(true);
     try {
       console.log("Signing in user");
       const userCredential = await signInWithEmailAndPassword(
@@ -260,8 +259,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -328,8 +325,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     hasRole,
   };
 
-  // Only show loading screen for auth operations, not initial load
-  if (loading) {
+  // Only show loading screen for auth operations other than login
+  if (loading && !window.location.pathname.includes("/login")) {
     return <LoadingScreen />;
   }
 

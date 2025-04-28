@@ -92,7 +92,10 @@ export default function IndexDropDown({ className, onLogout }: Props) {
                 <p className="text-xs text-primary font-semibold opacity-75 truncate">
                   {userData?.email}
                 </p>
-                <span className="inline-flex items-center rounded-full px-2 py-0.5 mt-1 text-xs font-medium bg-primary/10 text-primary">
+                <span
+                  style={{ width: "fit-content" }}
+                  className="inline-flex items-center rounded-full px-2 py-0.5 mt-1 text-xs font-medium bg-primary/10 text-primary"
+                >
                   {userData?.role}
                 </span>
               </div>

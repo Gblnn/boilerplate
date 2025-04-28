@@ -58,7 +58,7 @@ export function UpdateUserDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] bg-white dark:bg-gray-950">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Update User</DialogTitle>
