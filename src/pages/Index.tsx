@@ -1,5 +1,5 @@
 import Directive from "@/components/directive";
-import IndexDropDown from "@/components/index-dropdown";
+// import IndexDropDown from "@/components/index-dropdown";
 import { Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -37,7 +37,7 @@ export default function Index() {
             }}
           >
             <p>mk</p>
-            <IndexDropDown />
+            {/* <IndexDropDown /> */}
           </div>
         </div>
         <div

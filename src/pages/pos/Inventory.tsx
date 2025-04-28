@@ -1,21 +1,16 @@
-import { useEffect, useState, useRef } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { Product } from "@/types/pos";
-import {
-  getAllProducts,
-  updateProduct,
-  addProduct,
-} from "@/services/firebase/pos";
-import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
+import Back from "@/components/back";
 import { Icons } from "@/components/ui/icons";
+import { useAuth } from "@/context/AuthContext";
+import { addProduct, getAllProducts } from "@/services/firebase/pos";
 import {
   getCachedProducts,
   saveProductsToCache,
-  updateCachedProduct,
 } from "@/services/pos/offlineProducts";
-import { Barcode, Box, Package } from "lucide-react";
-import Back from "@/components/back";
+import { Product } from "@/types/pos";
+import { AnimatePresence, motion } from "framer-motion";
+import { Barcode, Box } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 interface NewProduct {
   barcode: string;
@@ -36,14 +31,14 @@ const initialNewProduct: NewProduct = {
 };
 
 export const Inventory = () => {
-  const { user, isOnline } = useAuth();
+  const { isOnline } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [editingProduct, setEditingProduct] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<"name" | "stock" | "price">("name");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [filterLowStock, setFilterLowStock] = useState(false);
+  // const [editingProduct, setEditingProduct] = useState<string | null>(null);
+  // const [sortBy, setSortBy] = useState<"name" | "stock" | "price">("name");
+  // const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  // const [filterLowStock, setFilterLowStock] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newProduct, setNewProduct] = useState<NewProduct>(initialNewProduct);
 
@@ -97,58 +92,57 @@ export const Inventory = () => {
   }, [isOnline]);
 
   // Handle stock update
-  const handleStockUpdate = async (
-    productId: string,
-    currentStock: number,
-    change: number
-  ) => {
-    if (!isOnline) {
-      toast.error("Cannot update stock while offline");
-      return;
-    }
+  // const handleStockUpdate = async (
+  //   productId: string,
+  //   currentStock: number,
+  //   change: number
+  // ) => {
+  //   if (!isOnline) {
+  //     toast.error("Cannot update stock while offline");
+  //     return;
+  //   }
 
-    const newStock = Math.max(0, currentStock + change);
-    try {
-      setLoading(true);
-      await updateProduct(productId, { stock: newStock });
+  //   const newStock = Math.max(0, currentStock + change);
+  //   try {
+  //     setLoading(true);
+  //     await updateProduct(productId, { stock: newStock });
 
-      // Update local state
-      setProducts((prev) =>
-        prev.map((p) => (p.id === productId ? { ...p, stock: newStock } : p))
-      );
+  //     // Update local state
+  //     setProducts((prev) =>
+  //       prev.map((p) => (p.id === productId ? { ...p, stock: newStock } : p))
+  //     );
 
-      // Update cache
-      const updatedProduct = products.find((p) => p.id === productId);
-      if (updatedProduct) {
-        updateCachedProduct({ ...updatedProduct, stock: newStock });
-      }
+  //     // Update cache
+  //     const updatedProduct = products.find((p) => p.id === productId);
+  //     if (updatedProduct) {
+  //       updateCachedProduct({ ...updatedProduct, stock: newStock });
+  //     }
 
-      toast.success("Stock updated successfully");
-    } catch (error) {
-      toast.error("Failed to update stock");
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     toast.success("Stock updated successfully");
+  //   } catch (error) {
+  //     toast.error("Failed to update stock");
+  //     console.error(error);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   // Filter and sort products
-  const filteredAndSortedProducts = products
-    .filter((product) => {
-      const matchesSearch =
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.barcode.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesLowStock = !filterLowStock || product.stock < 10;
-      return matchesSearch && matchesLowStock;
-    })
-    .sort((a, b) => {
-      const aValue = a[sortBy];
-      const bValue = b[sortBy];
-      const order = sortOrder === "asc" ? 1 : -1;
-      return typeof aValue === "string"
-        ? aValue.localeCompare(bValue as string) * order
-        : ((aValue as number) - (bValue as number)) * order;
-    });
+  const filteredAndSortedProducts = products.filter((product) => {
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.barcode.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesLowStock = product.stock < 10;
+    return matchesSearch && matchesLowStock;
+  });
+  // .sort((a, b) => {
+  //   const aValue = a[sortBy];
+  //   const bValue = b[sortBy];
+  //   const order = sortOrder === "asc" ? 1 : -1;
+  //   return typeof aValue === "string"
+  //     ? aValue.localeCompare(bValue as string) * order
+  //     : ((aValue as number) - (bValue as number)) * order;
+  // });
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();

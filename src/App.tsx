@@ -1,21 +1,20 @@
+import { Toaster } from "@/components/ui/sonner";
 import {
+  Navigate,
+  Route,
   BrowserRouter as Router,
   Routes,
-  Route,
-  Navigate,
 } from "react-router-dom";
-import { AuthProvider, useAuth } from "./context/AuthContext";
-import { MainLayout } from "./components/layout/MainLayout";
 import { ProtectedRoute } from "./components/common/ProtectedRoute";
-import { RoleProtectedRoute } from "./components/common/RoleProtectedRoute";
 import { PublicRoute } from "./components/common/PublicRoute";
+import { MainLayout } from "./components/layout/MainLayout";
+import { ThemeProvider } from "./components/theme-provider";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import Index from "./pages/Index";
 import { Login } from "./pages/Login";
 import { Unauthorized } from "./pages/Unauthorized";
 import { Billing } from "./pages/pos/Billing";
 import { Inventory } from "./pages/pos/Inventory";
-import { ThemeProvider } from "./components/theme-provider";
-import { Toaster } from "@/components/ui/sonner";
-import Index from "./pages/Index";
 import UserManagement from "./pages/user-management";
 
 function App() {

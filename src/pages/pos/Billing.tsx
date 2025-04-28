@@ -1,12 +1,9 @@
-import { Icons } from "@/components/ui/icons";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Icons } from "@/components/ui/icons";
 import { useAuth } from "@/context/AuthContext";
 import { getLocalAuthData } from "@/services/auth/offlineAuth";
-import {
-  createBill,
-  getAllProducts,
-  getProductByBarcode,
-} from "@/services/firebase/pos";
+import { getAllProducts, getProductByBarcode } from "@/services/firebase/pos";
 import {
   getCachedProducts,
   saveProductsToCache,
@@ -14,10 +11,9 @@ import {
 } from "@/services/pos/offlineProducts";
 import { BillItem, Product } from "@/types/pos";
 import { AnimatePresence, motion } from "framer-motion";
-import { Barcode, Box, MinusCircle, Scan } from "lucide-react";
+import { Barcode, Box, MinusCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 
 export const Billing = () => {
   const { user, isOnline } = useAuth();
@@ -37,6 +33,7 @@ export const Billing = () => {
 
   // Initialize products cache from localStorage and fetch fresh data if online
   useEffect(() => {
+    console.log(isCacheLoading);
     const initializeProducts = async () => {
       try {
         // First, try to get cached products
@@ -181,9 +178,14 @@ export const Billing = () => {
       return;
     }
 
+    if (paymentMethod === "cash") {
+      toast.error("Cash payment is not available");
+      return;
+    }
+
     try {
       setLoading(true);
-      const billId = await createBill(items, effectiveUser.uid, paymentMethod);
+      // const billId = await createBill(items, effectiveUser.uid, paymentMethod);
       toast.success("Bill created successfully");
       setItems([]);
     } catch (error: any) {
