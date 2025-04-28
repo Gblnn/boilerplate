@@ -276,7 +276,7 @@ export const Inventory = () => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-auto"
+            className=" rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-auto"
           >
             <form onSubmit={handleAddProduct} className="p-6 space-y-4">
               <div className="flex items-center justify-between">
