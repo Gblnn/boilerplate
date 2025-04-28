@@ -1,17 +1,16 @@
+import { db } from "@/config/firebase";
+import { Supplier, SupplierProduct } from "@/types/supplier";
 import {
+  addDoc,
   collection,
   doc,
   getDoc,
   getDocs,
-  setDoc,
-  updateDoc,
   query,
-  where,
-  addDoc,
   serverTimestamp,
+  updateDoc,
+  where,
 } from "firebase/firestore";
-import { db } from "@/config/firebase";
-import { Supplier, SupplierProduct } from "@/types/supplier";
 
 // Get all suppliers
 export const getAllSuppliers = async (): Promise<Supplier[]> => {
