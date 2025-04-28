@@ -138,7 +138,7 @@ export default function UserManagement() {
           <div className="flex items-center gap-2">
             <Back />
             <h1 style={{ fontSize: "1.25rem" }} className="">
-              Manage Users
+              Users
             </h1>
           </div>
         </div>

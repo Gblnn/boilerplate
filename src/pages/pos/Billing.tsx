@@ -557,23 +557,29 @@ export const Billing = () => {
               justifyContent: "space-between",
               borderBottom: "1px solid rgba(100 100 100/ 40%)",
             }}
-            className="px-3 py-2 "
+            className="px-3 py-2 bg-white dark:bg-gray-950"
           >
             <div style={{ display: "flex", alignItems: "center" }}>
               {userData?.role === "admin" && <Back />}
               <h2
-                style={{ marginLeft: "0.75rem" }}
-                className="text-lg font-semibold "
+                style={{ marginLeft: "0.75rem", fontSize: "1.5rem" }}
+                className=" "
               >
                 Billing
               </h2>
             </div>
             <div
-              style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.75rem",
+                border: "",
+              }}
             >
               <button
+                style={{ height: "2.5rem", width: "2.5rem" }}
                 onClick={() => setShowStockDialog(true)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                className=" hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
               >
                 <Box className="h-5 w-5" />
               </button>
@@ -772,18 +778,27 @@ export const Billing = () => {
 
         {/* Right Side - Summary and Actions */}
         <div className="md:w-[350px] bg-white dark:bg-gray-950 md:border-l dark:border-gray-700">
-          <div className="p-3 flex gap-2 align-middle justify-between">
+          <div
+            style={{ display: "flex", alignItems: "center" }}
+            className="p-3 flex gap-2 align-middle justify-between"
+          >
             <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
               Bill Summary
             </h3>
-            <Button
-              variant="outline"
+            <button
+              style={{
+                paddingLeft: "1rem",
+                paddingRight: "1rem",
+                fontSize: "0.8rem",
+                height: "2rem",
+                opacity: items.length === 0 ? 0.5 : 1,
+              }}
               onClick={handleClearItems}
               disabled={items.length === 0}
             >
-              <MinusCircle width={"1rem"} />
+              <MinusCircle width={"1rem"} color="crimson" />
               Clear Items
-            </Button>
+            </button>
           </div>
 
           <div className="p-3 space-y-4">

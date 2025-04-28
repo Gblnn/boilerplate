@@ -57,11 +57,20 @@ export default function IndexDropDown({ className, onLogout }: Props) {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          borderRadius: "50%",
+          padding: "none",
+          height: "2.5rem",
+          width: "2.5rem",
         }}
       >
         {userData?.displayName ? (
-          <Avatar>
+          <Avatar
+            style={{
+              // width: "2.75rem",
+              // height: "2.5rem",
+              borderRadius: "0.25rem",
+              margin: "0",
+            }}
+          >
             <AvatarFallback>{getInitials(userData.displayName)}</AvatarFallback>
           </Avatar>
         ) : !isOnline ? (

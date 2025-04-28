@@ -17,6 +17,7 @@ import { Billing } from "./pages/pos/Billing";
 import { Inventory } from "./pages/pos/Inventory";
 import UserManagement from "./pages/user-management";
 import { RoleProtectedRoute } from "./components/common/RoleProtectedRoute";
+import Suppliers from "./pages/Suppliers";
 
 function App() {
   return (
@@ -80,6 +81,14 @@ function App() {
               }
             />
 
+            <Route
+              path="/suppliers"
+              element={
+                <RoleProtectedRoute allowedRoles={["admin"]}>
+                  <Suppliers />
+                </RoleProtectedRoute>
+              }
+            />
             {/* Default route - redirect to role-specific page */}
             <Route
               path="/"

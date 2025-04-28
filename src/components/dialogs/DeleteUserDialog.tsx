@@ -31,7 +31,7 @@ export function DeleteUserDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="bg-white dark:bg-grey-950">
         <DialogHeader>
           <DialogTitle>Delete User</DialogTitle>
           <DialogDescription>

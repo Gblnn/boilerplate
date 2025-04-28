@@ -62,10 +62,7 @@ export function UpdateUserDialog({
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Update User</DialogTitle>
-            <DialogDescription>
-              Update the user's details. Note that changing the email will not
-              affect their login credentials.
-            </DialogDescription>
+            <DialogDescription></DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -95,7 +92,7 @@ export function UpdateUserDialog({
                 value={role}
                 onValueChange={(value) => setRole(value as UserRole)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -106,7 +103,13 @@ export function UpdateUserDialog({
               </Select>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter
+            style={{
+              borderTop: "1px solid rgba(100 100 100/ 20%)",
+              paddingTop: "0.5rem",
+              marginTop: "1rem",
+            }}
+          >
             <Button variant="outline" type="button" onClick={onClose}>
               Cancel
             </Button>

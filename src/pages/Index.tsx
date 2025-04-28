@@ -5,6 +5,7 @@ import {
   Book,
   Box,
   DollarSign,
+  Target,
   Ticket,
   Truck,
   UserRoundCog,
@@ -46,7 +47,13 @@ export default function Index() {
               alignItems: "center",
             }}
           >
-            <p style={{ fontSize: "1.5rem", fontWeight: 600 }}>PointSale</p>
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              <Target color="crimson" />
+              <p style={{ fontSize: "1.5rem", fontWeight: 600 }}>Branding</p>
+            </div>
+
             <div className="flex items-center gap-2">
               <button
                 style={{
