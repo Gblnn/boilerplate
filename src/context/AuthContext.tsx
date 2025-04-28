@@ -10,6 +10,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { createContext, useContext, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { auth } from "../config/firebase";
 import {
   clearLocalAuth,
@@ -42,6 +43,7 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const navigate = useNavigate();
   // First, get the cached user data
   const cachedUserData = getLocalUserData();
 
@@ -89,6 +91,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
   const [loading, setLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Add effect to handle auth state changes and redirects
+  useEffect(() => {
+    // If no user data is found, redirect to login
+    if (!user && !userData && !loading) {
+      navigate("/login");
+    }
+  }, [user, userData, loading, navigate]);
 
   // Handle online/offline status
   useEffect(() => {

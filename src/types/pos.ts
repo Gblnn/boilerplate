@@ -41,3 +41,28 @@ export interface InventoryTransaction {
   userId: string;
   billId?: string;
 }
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  totalPurchases: number;
+  totalSpent: number;
+  lastPurchaseDate?: Date;
+  createdAt: Date;
+}
+
+export interface CustomerPurchase {
+  id: string;
+  customerId: string;
+  customerName: string;
+  items: BillItem[];
+  subtotal: number;
+  tax: number;
+  total: number;
+  paymentMethod: "cash" | "card";
+  date: Date;
+  userId: string;
+  userName: string;
+}

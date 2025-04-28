@@ -1,14 +1,27 @@
 import IndexDropDown from "@/components/index-dropdown";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Icons } from "@/components/ui/icons";
 import { useAuth } from "@/context/AuthContext";
-import { getAllProducts, getProductByBarcode } from "@/services/firebase/pos";
+import {
+  createCustomer,
+  createCustomerPurchase,
+  getAllProducts,
+  getProductByBarcode,
+  searchCustomers,
+  updateCustomerPurchaseStats,
+} from "@/services/firebase/pos";
 import {
   getCachedProducts,
   saveProductsToCache,
   updateCachedProduct,
 } from "@/services/pos/offlineProducts";
-import { BillItem, Product } from "@/types/pos";
+import { BillItem, Customer, CustomerPurchase, Product } from "@/types/pos";
 import { AnimatePresence, motion } from "framer-motion";
 import { Box, Check, MinusCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -26,7 +39,28 @@ export const Billing = () => {
     {}
   );
   const [isCacheLoading, setIsCacheLoading] = useState(true);
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showStockDialog, setShowStockDialog] = useState(false);
+  const [stockSearchQuery, setStockSearchQuery] = useState("");
+  // const [stockSortBy, setStockSortBy] = useState<"name" | "stock" | "price">(
+  //   "name"
+  // );
+  // const [stockSortOrder, setStockSortOrder] = useState<"asc" | "desc">("asc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const [customerName, setCustomerName] = useState("");
+  const [customerSuggestions, setCustomerSuggestions] = useState<Customer[]>(
+    []
+  );
+  const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null
+  );
+  const customerInputRef = useRef<HTMLInputElement>(null);
+  const customerSuggestionsRef = useRef<HTMLDivElement>(null);
 
   // Initialize products cache from localStorage and fetch fresh data if online
   useEffect(() => {
@@ -164,6 +198,172 @@ export const Billing = () => {
     setItems(items.filter((_, i) => i !== index));
   };
 
+  // Handle customer search
+  const handleCustomerSearch = async (value: string) => {
+    setCustomerName(value);
+    if (value.length > 0) {
+      try {
+        const customers = await searchCustomers(value);
+        setCustomerSuggestions(customers);
+        setShowCustomerSuggestions(true);
+      } catch (error) {
+        console.error("Error searching customers:", error);
+        toast.error("Failed to search customers");
+      }
+    } else {
+      setCustomerSuggestions([]);
+      setShowCustomerSuggestions(false);
+    }
+  };
+
+  // Handle customer selection
+  const handleCustomerSelect = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setCustomerName(customer.name);
+    setShowCustomerSuggestions(false);
+  };
+
+  // Handle customer creation
+  const handleCustomerCreate = async () => {
+    if (!customerName.trim()) return;
+
+    try {
+      const newCustomer = await createCustomer(customerName.trim());
+      setSelectedCustomer(newCustomer);
+      setCustomerName(newCustomer.name);
+      toast.success("New customer added");
+    } catch (error) {
+      console.error("Error creating customer:", error);
+      toast.error("Failed to create customer");
+    }
+  };
+
+  // Close customer suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        customerSuggestionsRef.current &&
+        !customerSuggestionsRef.current.contains(event.target as Node)
+      ) {
+        setShowCustomerSuggestions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Handle input change for search
+  const handleSearchChange = (value: string) => {
+    setBarcode(value);
+    if (value.length > 0) {
+      const matches = Object.values(productsCache).filter(
+        (product) =>
+          product.name.toLowerCase().includes(value.toLowerCase()) ||
+          product.barcode.toLowerCase().includes(value.toLowerCase())
+      );
+      setSuggestions(matches.slice(0, 5));
+      setShowSuggestions(true);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // Handle suggestion click
+  const handleSuggestionClick = (product: Product) => {
+    if (product.stock <= 0) {
+      toast.error("Product out of stock");
+      return;
+    }
+
+    // Check if item already exists in bill
+    const existingItemIndex = items.findIndex(
+      (item) => item.barcode === product.barcode
+    );
+
+    if (existingItemIndex >= 0) {
+      // Update quantity if stock allows
+      const newQuantity = items[existingItemIndex].quantity + 1;
+      if (newQuantity > product.stock) {
+        toast.error("Insufficient stock");
+        return;
+      }
+
+      const updatedItems = [...items];
+      updatedItems[existingItemIndex] = {
+        ...updatedItems[existingItemIndex],
+        quantity: newQuantity,
+        subtotal: product.price * newQuantity,
+      };
+      setItems(updatedItems);
+    } else {
+      // Add new item
+      const newItem: BillItem = {
+        productId: product.id,
+        barcode: product.barcode,
+        name: product.name,
+        price: product.price,
+        quantity: 1,
+        subtotal: product.price,
+      };
+      setItems([...items, newItem]);
+    }
+
+    // Clear barcode input and suggestions
+    setBarcode("");
+    setShowSuggestions(false);
+  };
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Filter and sort products for stock dialog
+  const filteredAndSortedProducts = Object.values(productsCache).filter(
+    (product) =>
+      product.name.toLowerCase().includes(stockSearchQuery.toLowerCase()) ||
+      product.barcode.toLowerCase().includes(stockSearchQuery.toLowerCase())
+  );
+  // .sort((a, b) => {
+  //   if (stockSortBy === "name") {
+  //     return stockSortOrder === "asc"
+  //       ? a.name.localeCompare(b.name)
+  //       : b.name.localeCompare(a.name);
+  //   } else if (stockSortBy === "stock") {
+  //     return stockSortOrder === "asc" ? a.stock - b.stock : b.stock - a.stock;
+  //   } else {
+  //     return stockSortOrder === "asc" ? a.price - b.price : b.price - a.price;
+  //   }
+  // });
+
+  const totalPages = Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
+  const paginatedProducts = filteredAndSortedProducts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset to first page when search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [stockSearchQuery]);
+
+  // Modify handleCheckout to include customer information
   const handleCheckout = async (paymentMethod: "cash" | "card") => {
     if (!effectiveUser) {
       toast.error("Please log in");
@@ -175,18 +375,37 @@ export const Billing = () => {
       return;
     }
 
-    if (paymentMethod === "cash") {
-      toast.error("Cash payment is not available");
+    if (!selectedCustomer) {
+      toast.error("Please select or create a customer");
       return;
     }
 
     try {
       setLoading(true);
-      // const billId = await createBill(items, effectiveUser.uid, paymentMethod);
-      toast.success("Bill created successfully");
+
+      // Create customer purchase record
+      const purchase: Omit<CustomerPurchase, "id"> = {
+        customerId: selectedCustomer.id,
+        customerName: selectedCustomer.name,
+        items,
+        subtotal,
+        tax,
+        total,
+        paymentMethod,
+        date: new Date(),
+        userId: effectiveUser.uid,
+        userName: userData?.displayName || "Unknown",
+      };
+
+      await createCustomerPurchase(purchase);
+      await updateCustomerPurchaseStats(selectedCustomer.id, total);
+
+      toast.success("Purchase recorded successfully");
       setItems([]);
+      setCustomerName("");
+      setSelectedCustomer(null);
     } catch (error: any) {
-      toast.error(error.message || "Error creating bill");
+      toast.error(error.message || "Error processing purchase");
       console.error(error);
     } finally {
       setLoading(false);
@@ -198,7 +417,7 @@ export const Billing = () => {
   const total = subtotal + tax;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
       {/* Main Content */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Left Side - Items List */}
@@ -215,7 +434,6 @@ export const Billing = () => {
             }}
             className="px-3 py-2 "
           >
-            {/* <Back /> */}
             <h2
               style={{ marginLeft: "0.75rem" }}
               className="text-lg font-semibold"
@@ -225,18 +443,18 @@ export const Billing = () => {
             <div
               style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
             >
-              <button>
-                <Box />
+              <button
+                onClick={() => setShowStockDialog(true)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                <Box className="h-5 w-5" />
               </button>
               <IndexDropDown />
             </div>
           </div>
 
           {/* Scrollable Items List */}
-          <div
-            style={{ height: "100svh" }}
-            className="flex-1 overflow-y-auto p-2 "
-          >
+          <div style={{ height: "100%" }} className=" overflow-y-auto p-2 ">
             <AnimatePresence>
               {items.map((item, index) => (
                 <motion.div
@@ -320,33 +538,94 @@ export const Billing = () => {
           >
             <form
               onSubmit={handleBarcodeSubmit}
-              className="p-3"
+              className="p-3 space-y-3"
               style={{ borderBottom: "1px solid rgba(100 100 100/ 50%)" }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.75rem",
-                }}
-                className=""
-              >
+              {/* Customer Input */}
+              <div className="relative">
+                <input
+                  ref={customerInputRef}
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => handleCustomerSearch(e.target.value)}
+                  placeholder="Enter customer name..."
+                  className="w-full pl-8 pr-3 py-2 border rounded focus:outline-none focus:border-blue-500 text-sm"
+                />
+                {/* <Icons.user className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" /> */}
+                {showCustomerSuggestions && customerSuggestions.length > 0 && (
+                  <div
+                    ref={customerSuggestionsRef}
+                    className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-60 overflow-y-auto z-50"
+                  >
+                    {customerSuggestions.map((customer) => (
+                      <div
+                        key={customer.id}
+                        onClick={() => handleCustomerSelect(customer)}
+                        className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                      >
+                        <div className="font-medium">{customer.name}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {customer.totalPurchases} purchases • OMR{" "}
+                          {customer.totalSpent.toFixed(3)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {customerName && !selectedCustomer && (
+                  <button
+                    type="button"
+                    onClick={handleCustomerCreate}
+                    className="absolute right-2 top-2 text-sm text-blue-500 hover:text-blue-600"
+                  >
+                    Add New
+                  </button>
+                )}
+              </div>
+
+              {/* Barcode Input */}
+              <div className="relative">
                 <input
                   ref={barcodeInputRef}
                   type="text"
                   value={barcode}
-                  onChange={(e) => setBarcode(e.target.value)}
-                  placeholder="Scan barcode or enter product code..."
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Scan barcode or search by product name..."
                   className="w-full pl-8 pr-3 py-2 border rounded focus:outline-none focus:border-blue-500 text-sm"
                   disabled={loading}
                 />
+
+                {showSuggestions && suggestions.length > 0 && (
+                  <div
+                    ref={suggestionsRef}
+                    className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-60 overflow-y-auto z-50"
+                  >
+                    {suggestions.map((product) => (
+                      <div
+                        key={product.id}
+                        onClick={() => handleSuggestionClick(product)}
+                        className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex justify-between items-center"
+                      >
+                        <div>
+                          <div className="font-medium">{product.name}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            Barcode: {product.barcode}
+                          </div>
+                        </div>
+                        <div className="text-sm font-medium">
+                          OMR {product.price.toFixed(3)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </form>
           </div>
         </div>
 
         {/* Right Side - Summary and Actions */}
-        <div className="md:w-[350px] bg-white dark:bg-gray-800 md:border-l dark:border-gray-700">
+        <div className="md:w-[350px] bg-white dark:bg-gray-950 md:border-l dark:border-gray-700">
           <div className="p-3">
             <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
               Bill Summary
@@ -400,7 +679,10 @@ export const Billing = () => {
                 <span>OMR {tax.toFixed(3)}</span>
               </div>
 
-              <div className="h-px bg-gray-200 dark:bg-gray-700" />
+              <div
+                style={{ opacity: 0.5, marginTop: "0.5rem" }}
+                className="h-px bg-gray-200 dark:bg-gray-700"
+              />
               <div className="flex justify-between text-lg font-bold text-gray-800 dark:text-gray-200">
                 <span>Total</span>
                 <span>OMR {total.toFixed(3)}</span>
@@ -439,6 +721,133 @@ export const Billing = () => {
           </div>
         </div>
       </div>
+
+      {/* Stock Dialog */}
+      <Dialog open={showStockDialog} onOpenChange={setShowStockDialog}>
+        <DialogContent className=" bg-gray-50 dark:bg-gray-950 max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Current Stock</DialogTitle>
+          </DialogHeader>
+
+          {/* Search and Sort Controls */}
+          <div className="flex flex-col gap-4 sticky top-0 z-10 pb-4 ">
+            <div className="relative">
+              <input
+                type="text"
+                value={stockSearchQuery}
+                onChange={(e) => setStockSearchQuery(e.target.value)}
+                placeholder="Search products..."
+                className="w-full pl-8 pr-3 py-2 border rounded focus:outline-none focus:border-blue-500 text-sm"
+              />
+            </div>
+
+            {/* <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600 dark:text-gray-400">
+                  Sort by:
+                </label>
+                <select
+                  value={stockSortBy}
+                  onChange={(e) =>
+                    setStockSortBy(e.target.value as "name" | "stock" | "price")
+                  }
+                  className="text-sm border rounded px-2 py-1 focus:outline-none focus:border-blue-500"
+                >
+                  <option value="name">Name</option>
+                  <option value="stock">Stock</option>
+                  <option value="price">Price</option>
+                </select>
+              </div>
+              <button
+                onClick={() =>
+                  setStockSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+                }
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+              >
+                <Icons.chevronRight
+                  className={`h-4 w-4 transition-transform ${
+                    stockSortOrder === "asc" ? "rotate-90" : "-rotate-90"
+                  }`}
+                />
+              </button>
+            </div> */}
+          </div>
+
+          {/* Products List */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {paginatedProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <div>
+                    <h3 className="font-medium">{product.name}</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Barcode: {product.barcode}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Stock
+                      </p>
+                      <p
+                        className={`font-medium ${
+                          product.stock <= 5 ? "text-red-500" : "text-green-500"
+                        }`}
+                      >
+                        {product.stock}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Price
+                      </p>
+                      <p className="font-medium">
+                        OMR {product.price.toFixed(3)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Showing {paginatedProducts.length} of{" "}
+                {filteredAndSortedProducts.length} products
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-50"
+                >
+                  <Icons.chevronLeft className="h-4 w-4" />
+                </button>
+                <span className="text-sm">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-50"
+                >
+                  <Icons.chevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

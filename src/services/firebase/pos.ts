@@ -1,5 +1,12 @@
 import { db } from "@/config/firebase";
-import { Bill, BillItem, InventoryTransaction, Product } from "@/types/pos";
+import {
+  Bill,
+  BillItem,
+  InventoryTransaction,
+  Product,
+  Customer,
+  CustomerPurchase,
+} from "@/types/pos";
 import {
   addDoc,
   collection,
@@ -11,6 +18,8 @@ import {
   serverTimestamp,
   updateDoc,
   where,
+  getDoc,
+  limit,
 } from "firebase/firestore";
 
 // Products
@@ -270,4 +279,59 @@ export const getInventoryTransactions = async (
   return snapshot.docs.map(
     (doc) => ({ id: doc.id, ...doc.data() } as InventoryTransaction)
   );
+};
+
+// Customer functions
+export const searchCustomers = async (
+  searchTerm: string
+): Promise<Customer[]> => {
+  const customersRef = collection(db, "customers");
+  const q = query(
+    customersRef,
+    where("name", ">=", searchTerm.toLowerCase()),
+    where("name", "<=", searchTerm.toLowerCase() + "\uf8ff"),
+    orderBy("name"),
+    limit(5)
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(
+    (doc) => ({ id: doc.id, ...doc.data() } as Customer)
+  );
+};
+
+export const createCustomer = async (name: string): Promise<Customer> => {
+  const customersRef = collection(db, "customers");
+  const newCustomer: Omit<Customer, "id"> = {
+    name: name.toLowerCase(),
+    totalPurchases: 0,
+    totalSpent: 0,
+    createdAt: new Date(),
+  };
+  const docRef = await addDoc(customersRef, newCustomer);
+  return { id: docRef.id, ...newCustomer };
+};
+
+export const updateCustomerPurchaseStats = async (
+  customerId: string,
+  purchaseAmount: number
+) => {
+  const customerRef = doc(db, "customers", customerId);
+  const customerDoc = await getDoc(customerRef);
+
+  if (customerDoc.exists()) {
+    const customer = customerDoc.data() as Customer;
+    await updateDoc(customerRef, {
+      totalPurchases: customer.totalPurchases + 1,
+      totalSpent: customer.totalSpent + purchaseAmount,
+      lastPurchaseDate: new Date(),
+    });
+  }
+};
+
+export const createCustomerPurchase = async (
+  purchase: Omit<CustomerPurchase, "id">
+) => {
+  const billsRef = collection(db, "bills");
+  const docRef = await addDoc(billsRef, purchase);
+  return { id: docRef.id, ...purchase };
 };
