@@ -1,4 +1,10 @@
-import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  onSnapshot,
+} from "firebase/firestore";
 import { User } from "firebase/auth";
 import { UserData, UserRole } from "../../types/auth";
 import app from "../../config/firebase";
@@ -6,22 +12,49 @@ import app from "../../config/firebase";
 const db = getFirestore(app);
 
 export const createUserData = async (
-  user: User,
-  role: UserRole = "user"
+  user: { uid: string; email: string | null },
+  role: UserRole
 ): Promise<void> => {
   const userData: UserData = {
     uid: user.uid,
     email: user.email,
-    role: role,
-    displayName: user.displayName,
+    role,
+    displayName: null,
   };
-
   await setDoc(doc(db, "users", user.uid), userData);
 };
 
 export const getUserData = async (uid: string): Promise<UserData | null> => {
-  const userDoc = await getDoc(doc(db, "users", uid));
-  return userDoc.exists() ? (userDoc.data() as UserData) : null;
+  console.log("Fetching user data for uid:", uid);
+  const docRef = doc(db, "users", uid);
+  const docSnap = await getDoc(docRef);
+  console.log(
+    "Firestore response:",
+    docSnap.exists() ? docSnap.data() : "No data"
+  );
+  if (!docSnap.exists()) return null;
+  return docSnap.data() as UserData;
+};
+
+export const subscribeToUserData = (
+  uid: string,
+  callback: (userData: UserData | null) => void
+): (() => void) => {
+  const docRef = doc(db, "users", uid);
+  return onSnapshot(docRef, (doc) => {
+    if (!doc.exists()) {
+      callback(null);
+      return;
+    }
+    callback(doc.data() as UserData);
+  });
+};
+
+export const setUserRole = async (
+  uid: string,
+  role: UserRole
+): Promise<void> => {
+  await setDoc(doc(db, "users", uid), { role }, { merge: true });
 };
 
 export const hasRole = (

@@ -4,21 +4,19 @@ import { LoadingScreen } from "./LoadingScreen";
 
 interface PublicRouteProps {
   children: React.ReactNode;
-  redirectTo?: string;
 }
 
-export const PublicRoute = ({
-  children,
-  redirectTo = "/dashboard",
-}: PublicRouteProps) => {
-  const { user, loading } = useAuth();
+export const PublicRoute = ({ children }: PublicRouteProps) => {
+  const { user, userData, loading } = useAuth();
 
   if (loading) {
     return <LoadingScreen />;
   }
 
-  if (user) {
-    return <Navigate to={redirectTo} replace />;
+  // Only redirect if we have both user and userData
+  if (user && userData) {
+    const redirectPath = userData.role === "admin" ? "/index" : "/billing";
+    return <Navigate to={redirectPath} replace />;
   }
 
   return <>{children}</>;

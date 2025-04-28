@@ -9,7 +9,8 @@ import {
   Image,
   Laptop,
   Loader2,
-  LucideProps,
+  type Icon as LucideIcon,
+  type LucideProps,
   Moon,
   MoreVertical,
   Pizza,
@@ -19,10 +20,15 @@ import {
   Trash,
   User,
   X,
-  type Icon as LucideIcon,
+  Search,
+  Minus,
+  Banknote,
+  CreditCard,
 } from "lucide-react";
 
-export type Icon = LucideIcon;
+type IconComponent = typeof LucideIcon | React.FC<LucideProps>;
+
+export type Icon = keyof typeof Icons;
 
 export const Icons = {
   logo: Command,
@@ -61,4 +67,9 @@ export const Icons = {
       ></path>
     </svg>
   ),
-};
+  search: Search,
+  minus: Minus,
+  plus: Plus,
+  banknote: Banknote,
+  creditCard: CreditCard,
+} satisfies Record<string, IconComponent>;

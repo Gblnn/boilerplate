@@ -1,23 +1,33 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
 import { Icons } from "@/components/ui/icons";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "./Login.css";
 
 export const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn, userData, user } = useAuth();
   const navigate = useNavigate();
+
+  // Handle redirection when userData changes
+  useEffect(() => {
+    if (user && userData) {
+      if (userData.role === "admin") {
+        navigate("/index");
+      } else if (userData.role == "cashier") {
+        navigate("/billing");
+      }
+    }
+  }, [userData, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setIsLoading(true);
       await signIn(email, password);
-      navigate("/");
     } catch (error) {
       console.error(error);
     } finally {
@@ -186,7 +196,7 @@ export const Login = () => {
                 <Icons.chevronRight className="h-4 w-4" />
               </button>
 
-              <button
+              {/* <button
                 onClick={signInWithGoogle}
                 style={{
                   display: "flex",
@@ -202,7 +212,7 @@ export const Login = () => {
               >
                 <Icons.google className="h-4 w-4" />
                 Continue with Google
-              </button>
+              </button> */}
             </div>
 
             <br />

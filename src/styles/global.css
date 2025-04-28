@@ -18,6 +18,7 @@ body {
 button {
   background-color: rgba(100 100 100/ 10%);
   font-size: 1.05rem;
+  color: inherit;
 }
 
 input:-webkit-autofill,
@@ -25,7 +26,6 @@ input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
   transition: background-color 5000s ease-in-out 0s;
-  -webkit-text-fill-color: #ffffff !important;
 }
 
 input {
@@ -130,6 +130,7 @@ input {
 
 input:focus {
   outline: none;
+  background-color: rgba(150 150 150/ 15%);
 }
 
 input::-webkit-search-cancel-button {
@@ -162,6 +163,7 @@ textarea {
   background: rgba(100 100 100/ 20%);
   border-radius: 0.75rem;
   transition: 0.3s;
+  color: #1a1a1a;
 }
 
 body {

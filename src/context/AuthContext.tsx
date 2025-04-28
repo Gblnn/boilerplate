@@ -19,6 +19,7 @@ import {
   clearLocalAuth,
 } from "../services/auth/offlineAuth";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
+import { subscribeToUserData } from "@/services/firebase/user";
 
 interface AuthContextType {
   user: User | null;
@@ -43,9 +44,16 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(() => {
+    // Initialize with cached data immediately
+    const localAuthData = getLocalAuthData();
+    return localAuthData as User | null;
+  });
+  const [userData, setUserData] = useState<UserData | null>(() => {
+    // Initialize with cached user data immediately
+    return getLocalUserData();
+  });
+  const [loading, setLoading] = useState(false); // Start with false since we have initial state
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   // Handle online/offline status
@@ -64,39 +72,73 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Initialize auth state
   useEffect(() => {
-    // First check local storage for offline mode
+    // If offline, we're already using cached data, no need to do anything
     if (!isOnline) {
-      const localAuthData = getLocalAuthData();
-      if (localAuthData) {
-        setUser(localAuthData as User);
-        const localUserData = getLocalUserData();
-        setUserData(localUserData);
-      } else {
-        clearLocalAuth();
-      }
-      setLoading(false);
+      console.log("Offline mode: using cached data");
       return;
     }
 
+    console.log("Setting up auth state listener");
     // Online mode: listen to Firebase auth state
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log(
+        "Auth state changed:",
+        firebaseUser ? "User logged in" : "No user"
+      );
+      if (firebaseUser) {
         try {
-          const userData = await getUserData(user.uid);
-          setUserData(userData);
-          // Save to local storage for offline access
-          saveAuthToLocal(user);
-          saveUserDataToLocal(userData);
+          console.log("Attempting to fetch user data for:", firebaseUser.uid);
+          // First, get the initial user data
+          const initialUserData = await getUserData(firebaseUser.uid);
+          console.log("Received initial user data:", initialUserData);
+
+          if (initialUserData) {
+            setUserData(initialUserData);
+            saveUserDataToLocal(initialUserData);
+          } else {
+            console.warn(
+              "No user data found in Firestore for uid:",
+              firebaseUser.uid
+            );
+          }
+
+          // Then subscribe to future updates
+          const unsubscribeUserData = subscribeToUserData(
+            firebaseUser.uid,
+            (freshUserData) => {
+              console.log("Received user data update:", freshUserData);
+              if (freshUserData) {
+                // Only update if data is different
+                if (
+                  JSON.stringify(freshUserData) !== JSON.stringify(userData)
+                ) {
+                  setUserData(freshUserData);
+                  saveUserDataToLocal(freshUserData);
+                }
+              }
+            }
+          );
+
+          // Only update if user data is different
+          if (JSON.stringify(firebaseUser) !== JSON.stringify(user)) {
+            setUser(firebaseUser);
+            saveAuthToLocal(firebaseUser);
+          }
+
+          // Clean up user data subscription when auth state changes
+          return () => unsubscribeUserData();
         } catch (error) {
           console.error("Error fetching user data:", error);
-          setUserData(null);
+          // Keep using cached data if fetch fails
+          if (!userData) {
+            setUserData(null);
+          }
         }
       } else {
+        setUser(null);
         setUserData(null);
         clearLocalAuth();
       }
-      setLoading(false);
     });
 
     return unsubscribe;
@@ -107,30 +149,77 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     password: string,
     role: UserRole = "user"
   ) => {
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
-    await createUserData(userCredential.user, role);
+    setLoading(true);
+    try {
+      console.log("Creating new user with role:", role);
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      console.log("User created, creating user data in Firestore");
+      await createUserData(userCredential.user, role);
+      console.log("User data created in Firestore");
+    } catch (error) {
+      console.error("Error during sign up:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    setLoading(true);
+    try {
+      console.log("Signing in user");
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      console.log("User signed in, fetching user data");
+      // Fetch user data immediately after successful sign in
+      const userDataResult = await getUserData(userCredential.user.uid);
+      console.log("Fetched user data after sign in:", userDataResult);
+      if (userDataResult) {
+        setUserData(userDataResult);
+        saveUserDataToLocal(userDataResult);
+      } else {
+        console.warn(
+          "No user data found after sign in for uid:",
+          userCredential.user.uid
+        );
+      }
+    } catch (error) {
+      console.error("Error during sign in:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    const userCredential = await signInWithPopup(auth, provider);
-    const userData = await getUserData(userCredential.user.uid);
-    if (!userData) {
-      await createUserData(userCredential.user, "user");
+    setLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      const userCredential = await signInWithPopup(auth, provider);
+      const userData = await getUserData(userCredential.user.uid);
+      if (!userData) {
+        await createUserData(userCredential.user, "user");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = async () => {
-    await signOut(auth);
-    clearLocalAuth();
+    setLoading(true);
+    try {
+      await signOut(auth);
+      clearLocalAuth();
+    } finally {
+      setLoading(false);
+    }
   };
 
   const hasRole = (role: UserRole | UserRole[]): boolean => {
@@ -155,6 +244,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     hasRole,
   };
 
+  // Only show loading screen for auth operations, not initial load
   if (loading) {
     return <LoadingScreen />;
   }
