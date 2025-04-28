@@ -29,6 +29,7 @@ import {
   Barcode,
   Box,
   Check,
+  DollarSign,
   LoaderCircle,
   MinusCircle,
   UserPlus,
@@ -559,12 +560,12 @@ export const Billing = () => {
             }}
             className="px-3 py-2 bg-white dark:bg-gray-950"
           >
-            <div style={{ display: "flex", alignItems: "center" }}>
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
               {userData?.role === "admin" && <Back />}
-              <h2
-                style={{ marginLeft: "0.75rem", fontSize: "1.5rem" }}
-                className=" "
-              >
+              <DollarSign color="crimson" />
+              <h2 style={{ marginLeft: "", fontSize: "1.5rem" }} className=" ">
                 Billing
               </h2>
             </div>

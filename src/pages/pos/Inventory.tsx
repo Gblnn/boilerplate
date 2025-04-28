@@ -152,7 +152,10 @@ export const Inventory = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Back />
-            <h1 className="font-semibold">Inventory</h1>
+            <Box color="crimson" />
+            <h1 style={{ fontSize: "1.5rem" }} className="">
+              Inventory
+            </h1>
           </div>
 
           <div className="flex items-center gap-2">

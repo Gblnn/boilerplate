@@ -42,7 +42,7 @@ export default function Index() {
               // border: "1px solid red",
               padding: "0.75rem",
               width: "100%",
-              marginLeft: "1rem",
+              marginLeft: "0.5rem",
               justifyContent: "space-between",
               alignItems: "center",
             }}
@@ -52,6 +52,9 @@ export default function Index() {
             >
               <Target color="crimson" />
               <p style={{ fontSize: "1.5rem", fontWeight: 600 }}>Branding</p>
+              <p style={{ fontSize: "0.8rem", fontWeight: 400, opacity: 0.5 }}>
+                v1.1
+              </p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -89,27 +92,28 @@ export default function Index() {
           <Directive
             onClick={() => navigate("/billing")}
             title={"Billing"}
-            icon={<DollarSign />}
+            icon={<DollarSign color="crimson" />}
           />
           <Directive
             onClick={() => navigate("/inventory")}
             title={"Inventory"}
-            icon={<Box />}
+            icon={<Box color="crimson" />}
           />
           <Directive
             onClick={() => navigate("/suppliers")}
             title={"Suppliers"}
-            icon={<Truck />}
+            icon={<Truck color="crimson" />}
           />
           <Directive
             onClick={() => navigate("/credit-book")}
             title={"Credit Book"}
-            icon={<Book />}
+            icon={<Book color="crimson" />}
+            tag={""}
           />
           <Directive
             onClick={() => navigate("/bills")}
             title={"Bills"}
-            icon={<Ticket />}
+            icon={<Ticket color="crimson" />}
           />
         </div>
       </div>
