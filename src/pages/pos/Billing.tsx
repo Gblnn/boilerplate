@@ -718,14 +718,12 @@ export const Billing = () => {
               borderBottom: "1px solid rgba(100 100 100/ 20%)",
               position: "fixed",
               // marginBottom: "1.5rem",
-              marginBottom: "env(safe-area-inset-bottom)",
 
               bottom: 0,
               left: 0,
               right: 0,
               background: "",
               zIndex: 30,
-              paddingBottom: "env(safe-area-inset-bottom)",
             }}
             className={`md:relative dark:bg-gray-950 ${
               isSummaryVisible ? "md:w-[calc(100%-350px)]" : "md:w-full"
