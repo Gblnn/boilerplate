@@ -1,14 +1,18 @@
 import Back from "@/components/back";
 import { Icons } from "@/components/ui/icons";
 import { useAuth } from "@/context/AuthContext";
-import { addProduct, getAllProducts } from "@/services/firebase/pos";
+import {
+  addProduct,
+  deleteProduct,
+  getAllProducts,
+} from "@/services/firebase/pos";
 import {
   getCachedProducts,
   saveProductsToCache,
 } from "@/services/pos/offlineProducts";
 import { Product } from "@/types/pos";
 import { AnimatePresence, motion } from "framer-motion";
-import { Barcode, Box } from "lucide-react";
+import { Barcode, Box, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -40,6 +44,7 @@ export const Inventory = () => {
   // const [filterLowStock, setFilterLowStock] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newProduct, setNewProduct] = useState<NewProduct>(initialNewProduct);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   // Debounced search implementation without lodash
   const searchTimeout = useRef<NodeJS.Timeout | undefined>(undefined);
@@ -109,6 +114,22 @@ export const Inventory = () => {
   //     : ((aValue as number) - (bValue as number)) * order;
   // });
 
+  const handleInputChange = (field: keyof NewProduct, value: string) => {
+    // For numeric fields, only allow numbers or empty string
+    if (
+      (field === "stock" || field === "minStock" || field === "price") &&
+      value !== "" &&
+      isNaN(Number(value))
+    ) {
+      return;
+    }
+
+    setNewProduct((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isOnline) {
@@ -118,14 +139,32 @@ export const Inventory = () => {
 
     try {
       setLoading(true);
+
+      // Validate stock value
+      const stockValue =
+        newProduct.stock === "" ? 0 : parseInt(newProduct.stock, 10);
+      console.log("Stock value:", stockValue, "Raw input:", newProduct.stock);
+
+      if (
+        isNaN(stockValue) ||
+        stockValue < 0 ||
+        !Number.isInteger(stockValue)
+      ) {
+        toast.error("Please enter a valid stock quantity (whole number)");
+        return;
+      }
+
       const productData = {
         barcode: newProduct.barcode,
         name: newProduct.name,
-        price: parseFloat(newProduct.price),
-        stock: parseInt(newProduct.stock),
+        price: newProduct.price === "" ? 0 : parseFloat(newProduct.price),
+        stock: stockValue,
         category: newProduct.category,
-        minStock: parseInt(newProduct.minStock),
+        minStock:
+          newProduct.minStock === "" ? 0 : parseInt(newProduct.minStock, 10),
       };
+
+      console.log("Product data:", productData);
 
       await addProduct(productData);
 
@@ -140,6 +179,31 @@ export const Inventory = () => {
     } catch (error) {
       console.error("Error adding product:", error);
       toast.error("Failed to add product");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteProduct = async (product: Product) => {
+    if (!isOnline) {
+      toast.error("Cannot delete products while offline");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await deleteProduct(product.id);
+
+      // Update local state
+      const updatedProducts = products.filter((p) => p.id !== product.id);
+      setProducts(updatedProducts);
+      saveProductsToCache(updatedProducts);
+
+      toast.success("Product deleted successfully");
+      setProductToDelete(null);
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      toast.error("Failed to delete product");
     } finally {
       setLoading(false);
     }
@@ -205,7 +269,10 @@ export const Inventory = () => {
       </div>
 
       {/* Products List */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div
+        style={{ border: "", paddingBottom: "6rem" }}
+        className="flex-1 overflow-y-auto p-4"
+      >
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           <AnimatePresence>
             {filteredAndSortedProducts.map((product) => (
@@ -225,6 +292,12 @@ export const Inventory = () => {
                         {product.barcode}
                       </p>
                     </div>
+                    <button
+                      onClick={() => setProductToDelete(product)}
+                      className="p-1.5 text-red-500 hover:text-red-600 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
 
                   <div className="flex justify-between items-center">
@@ -301,35 +374,24 @@ export const Inventory = () => {
                 "Initial Stock",
                 "Category",
                 "Minimum Stock Level",
-              ].map((label) => (
-                <div key={label}>
-                  <label className="block text-sm font-medium mb-1 opacity-70">
-                    {label}
-                  </label>
-                  <input
-                    type={
-                      label.includes("Price") || label.includes("Stock")
-                        ? "number"
-                        : "text"
-                    }
-                    step={label.includes("Price") ? "0.001" : "1"}
-                    min="0"
-                    value={
-                      newProduct[
-                        label.toLowerCase().split(" ")[0] as keyof NewProduct
-                      ]
-                    }
-                    onChange={(e) =>
-                      setNewProduct({
-                        ...newProduct,
-                        [label.toLowerCase().split(" ")[0]]: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    required
-                  />
-                </div>
-              ))}
+              ].map((label) => {
+                const field = label
+                  .toLowerCase()
+                  .split(" ")[0] as keyof NewProduct;
+                return (
+                  <div key={label}>
+                    <label className="block text-sm font-medium mb-1 opacity-70">
+                      {label}
+                    </label>
+                    <input
+                      value={newProduct[field]}
+                      onChange={(e) => handleInputChange(field, e.target.value)}
+                      className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      required
+                    />
+                  </div>
+                );
+              })}
 
               <div className="flex gap-2 pt-4">
                 <button
@@ -352,6 +414,43 @@ export const Inventory = () => {
                 </button>
               </div>
             </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {productToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white dark:bg-gray-950 rounded-lg p-6 max-w-md w-full mx-4"
+          >
+            <h3 className="text-lg font-semibold mb-2">Delete Product</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
+              Are you sure you want to delete "{productToDelete.name}"? This
+              action cannot be undone.
+            </p>
+            <div className="flex justify-between gap-3">
+              <button
+                onClick={() => setProductToDelete(null)}
+                className="flex-1 px-4 py-2 border rounded text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                style={{ background: "brown" }}
+                onClick={() => handleDeleteProduct(productToDelete)}
+                disabled={loading}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+              >
+                {loading ? (
+                  <Icons.spinner className="h-5 w-5 animate-spin mx-auto" />
+                ) : (
+                  "Delete"
+                )}
+              </button>
+            </div>
           </motion.div>
         </div>
       )}

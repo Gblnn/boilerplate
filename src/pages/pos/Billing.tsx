@@ -613,6 +613,7 @@ export const Billing = () => {
               height: "calc(100vh - 12rem)",
               paddingTop: "0.5rem",
               paddingBottom: "0.5rem",
+              padding: "0.75rem",
             }}
             className="overflow-y-auto"
           >
@@ -836,7 +837,10 @@ export const Billing = () => {
             style={{ display: "flex", alignItems: "center" }}
             className="p-3 flex gap-2 align-middle justify-between"
           >
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+            <h3
+              style={{ fontSize: "1.25rem" }}
+              className=" font-semibold text-gray-800 dark:text-gray-200"
+            >
               Bill Summary
             </h3>
             <div className="flex items-center gap-2">
@@ -964,58 +968,14 @@ export const Billing = () => {
 
       {/* Stock Dialog */}
       <Dialog open={showStockDialog} onOpenChange={setShowStockDialog}>
-        <DialogContent className=" bg-gray-50 dark:bg-gray-950 max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogContent className="bg-gray-50 dark:bg-gray-950 max-w-4xl h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Current Stock</DialogTitle>
           </DialogHeader>
 
-          {/* Search and Sort Controls */}
-          <div className="flex flex-col gap-4 sticky top-0 z-10 pb-4 ">
-            <div className="relative">
-              <input
-                type="text"
-                value={stockSearchQuery}
-                onChange={(e) => setStockSearchQuery(e.target.value)}
-                placeholder="Search products..."
-                className="w-full pl-8 pr-3 py-2 border rounded focus:outline-none focus:border-blue-500 text-sm"
-              />
-            </div>
-
-            {/* <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600 dark:text-gray-400">
-                  Sort by:
-                </label>
-                <select
-                  value={stockSortBy}
-                  onChange={(e) =>
-                    setStockSortBy(e.target.value as "name" | "stock" | "price")
-                  }
-                  className="text-sm border rounded px-2 py-1 focus:outline-none focus:border-blue-500"
-                >
-                  <option value="name">Name</option>
-                  <option value="stock">Stock</option>
-                  <option value="price">Price</option>
-                </select>
-              </div>
-              <button
-                onClick={() =>
-                  setStockSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
-                }
-                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
-              >
-                <Icons.chevronRight
-                  className={`h-4 w-4 transition-transform ${
-                    stockSortOrder === "asc" ? "rotate-90" : "-rotate-90"
-                  }`}
-                />
-              </button>
-            </div> */}
-          </div>
-
           {/* Products List */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="flex flex-col gap-4 p-4">
               {paginatedProducts.map((product) => (
                 <div
                   key={product.id}
@@ -1050,52 +1010,57 @@ export const Billing = () => {
                         {product.stock}
                       </p>
                     </div>
-                    {/* <div className="text-right">
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Price
-                      </p>
-                      <p className="font-medium">
-                        OMR {product.price.toFixed(3)}
-                      </p>
-                    </div> */}
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                Showing {paginatedProducts.length} of{" "}
-                {filteredAndSortedProducts.length} products
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(1, prev - 1))
-                  }
-                  disabled={currentPage === 1}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-50"
-                >
-                  <Icons.chevronLeft className="h-4 w-4" />
-                </button>
-                <span className="text-sm">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-50"
-                >
-                  <Icons.chevronRight className="h-4 w-4" />
-                </button>
-              </div>
+          {/* Search and Pagination Controls */}
+          <div className="flex flex-col gap-4 bg-gray-50 dark:bg-gray-950 p-4 border-t">
+            <div className="relative">
+              <input
+                type="text"
+                value={stockSearchQuery}
+                onChange={(e) => setStockSearchQuery(e.target.value)}
+                placeholder="Search products..."
+                className="w-full pl-8 pr-3 py-2 border rounded focus:outline-none focus:border-blue-500 text-sm"
+              />
             </div>
-          )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Showing {paginatedProducts.length} of{" "}
+                  {filteredAndSortedProducts.length} products
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(1, prev - 1))
+                    }
+                    disabled={currentPage === 1}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-50"
+                  >
+                    <Icons.chevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-sm">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-50"
+                  >
+                    <Icons.chevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <DialogDescription />
         </DialogContent>
       </Dialog>

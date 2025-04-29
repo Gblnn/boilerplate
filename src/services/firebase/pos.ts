@@ -20,6 +20,7 @@ import {
   where,
   getDoc,
   limit,
+  deleteDoc,
 } from "firebase/firestore";
 
 // Products
@@ -81,6 +82,11 @@ export const updateProductStock = async (
     return { ...product, stock: newStock };
   }
   throw new Error("Product not found");
+};
+
+export const deleteProduct = async (productId: string): Promise<void> => {
+  const productRef = doc(db, "products", productId);
+  await deleteDoc(productRef);
 };
 
 // Bills
