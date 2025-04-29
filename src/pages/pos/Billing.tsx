@@ -157,8 +157,22 @@ export const Billing = () => {
 
   // Focus barcode input on mount and after each scan
   useEffect(() => {
-    barcodeInputRef.current?.focus();
-  }, [items]);
+    const handleFocus = () => {
+      if (barcodeInputRef.current) {
+        barcodeInputRef.current.focus();
+      }
+    };
+
+    // Only focus when items are added or removed, not when quantity changes
+    if (items.length > 0) {
+      const lastItem = items[items.length - 1];
+      if (lastItem.quantity === 1) {
+        handleFocus();
+      }
+    } else {
+      handleFocus();
+    }
+  }, [items.length]); // Only depend on items.length, not the entire items array
 
   // Handle barcode scanner input
   const handleBarcodeSubmit = async (e: React.FormEvent) => {
@@ -559,8 +573,11 @@ export const Billing = () => {
               gap: "0.75rem",
               justifyContent: "space-between",
               borderBottom: "1px solid rgba(100 100 100/ 40%)",
+              position: "sticky",
+              top: 0,
+              zIndex: 40,
             }}
-            className="px-3 py-2 bg-white dark:bg-gray-950"
+            className="px-3 py-2 dark:bg-gray-950"
           >
             <div
               style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
@@ -592,8 +609,12 @@ export const Billing = () => {
 
           {/* Scrollable Items List */}
           <div
-            style={{ height: "calc(100vh - 12rem)" }}
-            className="overflow-y-auto p-2"
+            style={{
+              height: "calc(100vh - 12rem)",
+              paddingTop: "0.5rem",
+              paddingBottom: "0.5rem",
+            }}
+            className="overflow-y-auto"
           >
             <AnimatePresence>
               {items.map((item, index) => (
@@ -691,15 +712,19 @@ export const Billing = () => {
               boxShadow: "1px 1px 10px rgba(0, 0, 0, 0.2)",
               borderTop: "1px solid rgba(100 100 100/ 20%)",
               borderBottom: "1px solid rgba(100 100 100/ 20%)",
-              marginBottom: "1.5rem",
               position: "fixed",
+              marginBottom: "1.5rem",
+
               bottom: 0,
               left: 0,
               right: 0,
               background: "",
-              zIndex: 20,
+              zIndex: 30,
+              paddingBottom: "env(safe-area-inset-bottom)",
             }}
-            className="md:relative"
+            className={`md:relative dark:bg-gray-950 ${
+              isSummaryVisible ? "md:w-[calc(100%-350px)]" : "md:w-full"
+            } md:transition-all md:duration-300 md:ease-in-out`}
           >
             <form onSubmit={handleBarcodeSubmit} className="p-2 space-y-2">
               {/* Customer Input */}
