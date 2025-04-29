@@ -560,7 +560,7 @@ export const Billing = () => {
 
   return (
     <div
-      style={{ height: "webkit-fill-available" }}
+      style={{ height: "-webkit-fill-available" }}
       className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200"
     >
       {/* Main Content */}
@@ -717,6 +717,7 @@ export const Billing = () => {
               borderTop: "1px solid rgba(100 100 100/ 20%)",
               borderBottom: "1px solid rgba(100 100 100/ 20%)",
               position: "fixed",
+
               // marginBottom: "1.5rem",
               marginBottom: "env(safe-area-inset-bottom)",
               bottom: 0,
