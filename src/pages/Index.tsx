@@ -40,7 +40,7 @@ export default function Index() {
             style={{
               display: "flex",
               // border: "1px solid red",
-              padding: "0.75rem",
+              padding: "1rem",
               width: "100%",
               marginLeft: "0.5rem",
               justifyContent: "space-between",
@@ -51,7 +51,7 @@ export default function Index() {
               style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
             >
               <Target color="crimson" />
-              <p style={{ fontSize: "1.5rem", fontWeight: 600 }}>Branding</p>
+              <p style={{ fontSize: "1.5rem", fontWeight: 600 }}>PointSale</p>
               <p style={{ fontSize: "0.8rem", fontWeight: 400, opacity: 0.5 }}>
                 v1.1
               </p>

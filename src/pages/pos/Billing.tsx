@@ -38,9 +38,9 @@ import {
   Box,
   Check,
   ChevronUp,
-  DollarSign,
   LoaderCircle,
   MinusCircle,
+  Target,
   UserPlus,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -567,7 +567,7 @@ export const Billing = () => {
           <div
             style={{
               boxShadow: "1px 1px 10px rgba(0 0 0/ 10%)",
-              padding: "0.75rem",
+              padding: "1rem",
               display: "flex",
               alignItems: "center",
               gap: "0.75rem",
@@ -583,10 +583,10 @@ export const Billing = () => {
               style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
             >
               {userData?.role === "admin" && <Back />}
-              <DollarSign color="crimson" />
-              <h2 style={{ marginLeft: "", fontSize: "1.5rem" }} className=" ">
+              <Target color="crimson" />
+              {/* <h2 style={{ marginLeft: "", fontSize: "1.5rem" }} className=" ">
                 Billing
-              </h2>
+              </h2> */}
             </div>
             <div
               style={{
