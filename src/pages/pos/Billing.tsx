@@ -83,7 +83,7 @@ export const Billing = () => {
   const [customersCache, setCustomersCache] = useState<
     Record<string, Customer>
   >({});
-  const [isSummaryVisible, setIsSummaryVisible] = useState(true);
+  const [isSummaryVisible, setIsSummaryVisible] = useState(false);
 
   // Initialize products cache from localStorage and fetch fresh data if online
   useEffect(() => {
@@ -591,7 +591,10 @@ export const Billing = () => {
           </div>
 
           {/* Scrollable Items List */}
-          <div style={{ height: "100%" }} className=" overflow-y-auto p-2 ">
+          <div
+            style={{ height: "calc(100vh - 12rem)" }}
+            className="overflow-y-auto p-2"
+          >
             <AnimatePresence>
               {items.map((item, index) => (
                 <motion.div
@@ -688,14 +691,16 @@ export const Billing = () => {
               boxShadow: "1px 1px 10px rgba(0, 0, 0, 0.2)",
               borderTop: "1px solid rgba(100 100 100/ 20%)",
               borderBottom: "1px solid rgba(100 100 100/ 20%)",
+              position: "fixed",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              marginBottom: "1.5rem",
+              zIndex: 20,
             }}
-            className="sticky bottom-0 w-full"
+            className="md:relative"
           >
-            <form
-              onSubmit={handleBarcodeSubmit}
-              className="p-3 space-y-3"
-              // style={{ borderBottom: "1px solid rgba(100 100 100/ 50%)" }}
-            >
+            <form onSubmit={handleBarcodeSubmit} className="p-2 space-y-2">
               {/* Customer Input */}
               <div
                 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
@@ -707,9 +712,8 @@ export const Billing = () => {
                   value={customerName}
                   onChange={(e) => handleCustomerSearch(e.target.value)}
                   placeholder="Enter customer name"
-                  className="w-full pl-8 pr-3 py-2 border rounded focus:outline-none focus:border-blue-500 text-sm"
+                  className="w-full pl-8 pr-3 py-1.5 border rounded focus:outline-none focus:border-blue-500 text-sm"
                 />
-                {/* <Icons.user className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" /> */}
                 {showCustomerSuggestions && customerSuggestions.length > 0 && (
                   <div
                     ref={customerSuggestionsRef}
@@ -753,14 +757,14 @@ export const Billing = () => {
               </div>
 
               {/* Barcode Input */}
-              <div className="relative" style={{ marginBottom: "1rem" }}>
+              <div className="relative">
                 <input
                   ref={barcodeInputRef}
                   type="text"
                   value={barcode}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   placeholder="Scan barcode or search by product name..."
-                  className="w-full pl-8 pr-3 py-2 border rounded focus:outline-none focus:border-blue-500 text-sm"
+                  className="w-full pl-8 pr-3 py-1.5 border rounded focus:outline-none focus:border-blue-500 text-sm"
                   disabled={loading}
                 />
 
@@ -1073,8 +1077,15 @@ export const Billing = () => {
       {/* Add persistent toggle button when summary is hidden */}
       {!isSummaryVisible && (
         <button
+          style={{
+            position: "absolute",
+            bottom: 0,
+            right: 0,
+            margin: "1rem",
+            marginBottom: "9rem",
+          }}
           onClick={() => setIsSummaryVisible(true)}
-          className="fixed bottom-4 right-4 p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-20"
+          className=" bg-white dark:bg-gray-800 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-20"
         >
           <ArrowLeftToLine className="h-6 w-6 rotate-180" />
         </button>
