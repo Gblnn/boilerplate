@@ -691,11 +691,12 @@ export const Billing = () => {
               boxShadow: "1px 1px 10px rgba(0, 0, 0, 0.2)",
               borderTop: "1px solid rgba(100 100 100/ 20%)",
               borderBottom: "1px solid rgba(100 100 100/ 20%)",
+              marginBottom: "1.5rem",
               position: "fixed",
               bottom: 0,
               left: 0,
               right: 0,
-              marginBottom: "1.5rem",
+              background: "",
               zIndex: 20,
             }}
             className="md:relative"
@@ -804,7 +805,7 @@ export const Billing = () => {
             isSummaryVisible ? "md:w-[350px]" : "md:w-0"
           } bg-white dark:bg-gray-950 md:border-l dark:border-gray-700 transition-all duration-300 ease-in-out ${
             isSummaryVisible ? "translate-y-0" : "translate-y-[100vh]"
-          } fixed md:relative bottom-0 left-0 right-0 md:left-auto md:right-auto md:bottom-auto z-10 overflow-hidden`}
+          } fixed md:relative bottom-0 left-0 right-0 md:left-auto md:right-auto md:bottom-auto z-30 overflow-hidden`}
         >
           <div
             style={{ display: "flex", alignItems: "center" }}
