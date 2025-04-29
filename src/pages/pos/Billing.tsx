@@ -809,12 +809,12 @@ export const Billing = () => {
                         <div>
                           <div className="font-medium">{product.name}</div>
                           <div className="text-sm text-gray-500 dark:text-gray-400">
-                            Barcode: {product.barcode}
+                            OMR {product.price.toFixed(3)}
                           </div>
                         </div>
-                        <div className="text-sm font-medium">
-                          OMR {product.price.toFixed(3)}
-                        </div>
+                        {/* <div className="text-sm font-medium">
+                        Barcode: {product.barcode}
+                        </div> */}
                       </div>
                     ))}
                   </div>
