@@ -16,7 +16,7 @@ body {
 }
 
 button {
-  background-color: rgba(100 100 100/ 10%);
+  /* background-color: rgba(100 100 100/ 10%); */
   font-size: 1.05rem;
   color: inherit;
 }
@@ -43,13 +43,13 @@ input {
 
 button {
   padding: 0.5rem;
-
+  cursor: pointer;
   border-radius: 0.5rem;
   font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(150 150 150/ 18%);
+  background-color: rgba(150 150 150/ 20%);
   font-weight: 500;
   transition: 0.3s;
   gap: 0.5rem;

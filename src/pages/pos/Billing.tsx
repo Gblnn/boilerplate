@@ -1,5 +1,5 @@
+import Back from "@/components/back";
 import IndexDropDown from "@/components/index-dropdown";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Icons } from "@/components/ui/icons";
+import { db } from "@/config/firebase";
 import { useAuth } from "@/context/AuthContext";
 import {
   createCustomer,
@@ -19,16 +20,24 @@ import {
   updateProductStock,
 } from "@/services/firebase/pos";
 import {
+  getCachedCustomers,
+  saveCustomersToCache,
+  updateCachedCustomer,
+} from "@/services/pos/offlineCustomers";
+import {
   getCachedProducts,
   saveProductsToCache,
   updateCachedProduct,
 } from "@/services/pos/offlineProducts";
 import { BillItem, Customer, CustomerPurchase, Product } from "@/types/pos";
+import { collection, getDocs } from "firebase/firestore";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  ArrowLeftToLine,
   Barcode,
   Box,
   Check,
+  ChevronUp,
   DollarSign,
   LoaderCircle,
   MinusCircle,
@@ -36,14 +45,6 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  getCachedCustomers,
-  saveCustomersToCache,
-  updateCachedCustomer,
-} from "@/services/pos/offlineCustomers";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/config/firebase";
-import Back from "@/components/back";
 
 export const Billing = () => {
   const { user, userData, isOnline } = useAuth();
@@ -82,6 +83,7 @@ export const Billing = () => {
   const [customersCache, setCustomersCache] = useState<
     Record<string, Customer>
   >({});
+  const [isSummaryVisible, setIsSummaryVisible] = useState(true);
 
   // Initialize products cache from localStorage and fetch fresh data if online
   useEffect(() => {
@@ -618,7 +620,7 @@ export const Billing = () => {
                       style={{ fontSize: "0.8rem", opacity: 0.5 }}
                       className="text-sm "
                     >
-                      {item.price.toFixed(3)} each
+                      {item.price.toFixed(3)}
                     </p>
                   </div>
 
@@ -628,7 +630,7 @@ export const Billing = () => {
                       style={{ marginRight: "0.25rem" }}
                       className="text-right min-w-[80px] text-sm font-medium "
                     >
-                      OMR {item.subtotal.toFixed(3)}
+                      {item.subtotal.toFixed(3)}
                     </div>
                     <div className="flex items-center rounded-lg">
                       <button
@@ -643,9 +645,23 @@ export const Billing = () => {
                       >
                         <Icons.minus className="h-4 w-4" />
                       </button>
-                      <span className="w-8 text-center font-medium text-sm ">
-                        {item.quantity}
-                      </span>
+                      <input
+                        style={{ background: "none", width: "4rem" }}
+                        type="number"
+                        min="1"
+                        max={productsCache[item.barcode]?.stock || 999}
+                        value={item.quantity}
+                        onChange={(e) => {
+                          const newQuantity = parseInt(e.target.value) || 1;
+                          if (
+                            newQuantity <=
+                            (productsCache[item.barcode]?.stock || 999)
+                          ) {
+                            handleQuantityChange(index, newQuantity);
+                          }
+                        }}
+                        className="w-12 text-center font-medium text-sm border-none focus:outline-none focus:ring-0 bg-transparent"
+                      />
                       <button
                         onClick={() =>
                           handleQuantityChange(index, item.quantity + 1)
@@ -737,7 +753,7 @@ export const Billing = () => {
               </div>
 
               {/* Barcode Input */}
-              <div className="relative">
+              <div className="relative" style={{ marginBottom: "1rem" }}>
                 <input
                   ref={barcodeInputRef}
                   type="text"
@@ -778,7 +794,14 @@ export const Billing = () => {
         </div>
 
         {/* Right Side - Summary and Actions */}
-        <div className="md:w-[350px] bg-white dark:bg-gray-950 md:border-l dark:border-gray-700">
+        <div
+          style={{ marginBottom: "1rem" }}
+          className={`${
+            isSummaryVisible ? "md:w-[350px]" : "md:w-0"
+          } bg-white dark:bg-gray-950 md:border-l dark:border-gray-700 transition-all duration-300 ease-in-out ${
+            isSummaryVisible ? "translate-y-0" : "translate-y-[100vh]"
+          } fixed md:relative bottom-0 left-0 right-0 md:left-auto md:right-auto md:bottom-auto z-10 overflow-hidden`}
+        >
           <div
             style={{ display: "flex", alignItems: "center" }}
             className="p-3 flex gap-2 align-middle justify-between"
@@ -786,20 +809,32 @@ export const Billing = () => {
             <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
               Bill Summary
             </h3>
-            <button
-              style={{
-                paddingLeft: "1rem",
-                paddingRight: "1rem",
-                fontSize: "0.8rem",
-                height: "2rem",
-                opacity: items.length === 0 ? 0.5 : 1,
-              }}
-              onClick={handleClearItems}
-              disabled={items.length === 0}
-            >
-              <MinusCircle width={"1rem"} color="crimson" />
-              Clear Items
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                style={{
+                  paddingLeft: "1rem",
+                  paddingRight: "1rem",
+                  fontSize: "0.8rem",
+                  height: "2rem",
+                  opacity: items.length === 0 ? 0.5 : 1,
+                }}
+                onClick={handleClearItems}
+                disabled={items.length === 0}
+              >
+                <MinusCircle width={"1rem"} />
+                Clear Bill
+              </button>
+              <button
+                onClick={() => setIsSummaryVisible(!isSummaryVisible)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                <ChevronUp
+                  className={`h-4 w-4 transition-transform ${
+                    isSummaryVisible ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+            </div>
           </div>
 
           <div className="p-3 space-y-4">
@@ -815,11 +850,11 @@ export const Billing = () => {
               {/* Tax Toggle and Amount */}
               <div className="flex items-center justify-between text-gray-800 dark:text-gray-200">
                 <div
+                  onClick={() => setIsTaxEnabled(!isTaxEnabled)}
                   style={{ alignItems: "center" }}
                   className="flex items-center gap-2"
                 >
                   <div
-                    onClick={() => setIsTaxEnabled(!isTaxEnabled)}
                     style={{
                       display: "flex",
                       width: "1.25rem",
@@ -847,32 +882,28 @@ export const Billing = () => {
                 style={{ opacity: 0.5, marginTop: "0.5rem" }}
                 className="h-px bg-gray-200 dark:bg-gray-700"
               />
-              <div className="flex justify-between text-lg font-bold text-gray-800 dark:text-gray-200">
-                <span>Total</span>
-                <span>OMR {total.toFixed(3)}</span>
+
+              <div
+                style={{
+                  fontSize: "1.25rem",
+                  border: "",
+                  letterSpacing: "0.05rem",
+                }}
+              >
+                <div className="flex justify-between font-bold text-gray-800 dark:text-gray-200">
+                  <span>Total</span>
+                  <span>OMR {total.toFixed(3)}</span>
+                </div>
               </div>
 
               {/* Clear Items Button */}
-              <div className="pt-2"></div>
             </div>
 
             {/* Payment Methods */}
             <div style={{}} className="">
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  className="bg-gray-950 dark:bg-white text-white dark:text-gray-950"
-                  onClick={() => handleCheckout("cash")}
-                  disabled={loading || items.length === 0}
-                >
-                  <Icons.banknote className="h-4 w-4" />
-                  {loading ? (
-                    <Icons.spinner className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Checkout"
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
+              <div className="flex grid-cols-2 gap-2 h-11">
+                <button
+                  style={{ flex: 1 }}
                   onClick={() => handleCheckout("card")}
                   disabled={loading || items.length === 0}
                 >
@@ -882,7 +913,19 @@ export const Billing = () => {
                   ) : (
                     "Credit"
                   )}
-                </Button>
+                </button>
+                <button
+                  style={{ flex: 1, background: "crimson", color: "white" }}
+                  onClick={() => handleCheckout("cash")}
+                  disabled={loading || items.length === 0}
+                >
+                  <Icons.banknote className="h-4 w-4" />
+                  {loading ? (
+                    <Icons.spinner className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Checkout"
+                  )}
+                </button>
               </div>
             </div>
           </div>
@@ -1026,6 +1069,16 @@ export const Billing = () => {
           <DialogDescription />
         </DialogContent>
       </Dialog>
+
+      {/* Add persistent toggle button when summary is hidden */}
+      {!isSummaryVisible && (
+        <button
+          onClick={() => setIsSummaryVisible(true)}
+          className="fixed bottom-4 right-4 p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-20"
+        >
+          <ArrowLeftToLine className="h-6 w-6 rotate-180" />
+        </button>
+      )}
     </div>
   );
 };
