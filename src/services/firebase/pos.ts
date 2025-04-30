@@ -1,3 +1,14 @@
+import {
+  collection,
+  doc,
+  getDocs,
+  addDoc,
+  deleteDoc,
+  updateDoc,
+  query,
+  where,
+  orderBy,
+} from "firebase/firestore";
 import { db } from "@/config/firebase";
 import {
   Bill,
@@ -6,21 +17,14 @@ import {
   Product,
   Customer,
   CustomerPurchase,
+  Supplier,
+  RestockRecord,
 } from "@/types/pos";
 import {
-  addDoc,
-  collection,
-  doc,
-  getDocs,
-  orderBy,
-  query,
-  runTransaction,
   serverTimestamp,
-  updateDoc,
-  where,
-  getDoc,
   limit,
-  deleteDoc,
+  getDoc,
+  runTransaction,
 } from "firebase/firestore";
 
 // Products
@@ -387,4 +391,172 @@ export const createCustomerPurchase = async (
   const billsRef = collection(db, "bills");
   const docRef = await addDoc(billsRef, purchase);
   return { id: docRef.id, ...purchase };
+};
+
+export const getAllBills = async () => {
+  try {
+    const billsRef = collection(db, "bills");
+    const querySnapshot = await getDocs(billsRef);
+    const bills: CustomerPurchase[] = [];
+
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      // Convert Firestore timestamp to JavaScript Date
+      const date = data.date?.toDate() || new Date();
+      console.log(`Bill ${doc.id} date:`, {
+        original: data.date,
+        converted: date,
+      });
+      bills.push({
+        id: doc.id,
+        ...data,
+        date, // Override the timestamp with the converted date
+      } as CustomerPurchase);
+    });
+
+    // Sort bills by date in descending order (newest first)
+    return bills.sort((a, b) => b.date.getTime() - a.date.getTime());
+  } catch (error) {
+    console.error("Error fetching bills:", error);
+    throw new Error("Failed to fetch bills");
+  }
+};
+
+// Supplier functions
+export const getAllSuppliers = async (): Promise<Supplier[]> => {
+  try {
+    const suppliersRef = collection(db, "suppliers");
+    const querySnapshot = await getDocs(suppliersRef);
+    return querySnapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate() || new Date(),
+        } as Supplier)
+    );
+  } catch (error) {
+    console.error("Error fetching suppliers:", error);
+    throw new Error("Failed to fetch suppliers");
+  }
+};
+
+export const addSupplier = async (
+  supplier: Omit<Supplier, "id" | "createdAt">
+): Promise<string> => {
+  try {
+    const docRef = await addDoc(collection(db, "suppliers"), {
+      ...supplier,
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error("Error adding supplier:", error);
+    throw new Error("Failed to add supplier");
+  }
+};
+
+export const createRestockRecord = async (
+  restock: Omit<RestockRecord, "id" | "date">
+): Promise<string> => {
+  return await runTransaction(db, async (transaction) => {
+    // First, perform reads
+    const productRef = doc(db, "products", restock.productId);
+    const productSnap = await transaction.get(productRef);
+
+    if (!productSnap.exists()) {
+      throw new Error(`Product ${restock.productId} not found`);
+    }
+
+    const currentStock = productSnap.data().stock;
+
+    // Create restock record
+    const restockRef = doc(collection(db, "restock_records"));
+    const restockData: Omit<RestockRecord, "id"> = {
+      ...restock,
+      date: new Date(),
+      totalCost: restock.quantity * restock.costPrice,
+    };
+
+    // Now perform all writes
+    transaction.set(restockRef, restockData);
+
+    // Update product stock
+    transaction.update(productRef, {
+      stock: currentStock + restock.quantity,
+      lastRestocked: new Date(),
+    });
+
+    // Create inventory transaction
+    const inventoryTransactionRef = doc(
+      collection(db, "inventory_transactions")
+    );
+    transaction.set(inventoryTransactionRef, {
+      productId: restock.productId,
+      type: "in",
+      quantity: restock.quantity,
+      reason: "restock",
+      date: new Date(),
+      userId: restock.userId,
+      costPrice: restock.costPrice,
+      supplierId: restock.supplierId,
+    } as InventoryTransaction);
+
+    return restockRef.id;
+  });
+};
+
+export const getRestockRecords = async (
+  startDate?: Date,
+  endDate?: Date,
+  supplierId?: string
+): Promise<RestockRecord[]> => {
+  try {
+    let q = query(collection(db, "restock_records"), orderBy("date", "desc"));
+
+    if (startDate) {
+      q = query(q, where("date", ">=", startDate));
+    }
+    if (endDate) {
+      q = query(q, where("date", "<=", endDate));
+    }
+    if (supplierId) {
+      q = query(q, where("supplierId", "==", supplierId));
+    }
+
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+          date: doc.data().date?.toDate() || new Date(),
+        } as RestockRecord)
+    );
+  } catch (error) {
+    console.error("Error fetching restock records:", error);
+    throw new Error("Failed to fetch restock records");
+  }
+};
+
+export const deleteSupplier = async (supplierId: string): Promise<void> => {
+  try {
+    // First check if supplier has any restock records
+    const restockRef = collection(db, "restock_records");
+    const restockQuery = query(
+      restockRef,
+      where("supplierId", "==", supplierId),
+      limit(1)
+    );
+    const restockSnapshot = await getDocs(restockQuery);
+
+    if (!restockSnapshot.empty) {
+      throw new Error("Cannot delete supplier with existing restock records");
+    }
+
+    await deleteDoc(doc(db, "suppliers", supplierId));
+  } catch (error) {
+    console.error("Error deleting supplier:", error);
+    throw error;
+  }
 };

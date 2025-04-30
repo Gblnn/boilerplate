@@ -5,16 +5,44 @@ import {
   addProduct,
   deleteProduct,
   getAllProducts,
+  updateProduct,
+  getAllSuppliers,
+  createRestockRecord,
 } from "@/services/firebase/pos";
 import {
   getCachedProducts,
   saveProductsToCache,
 } from "@/services/pos/offlineProducts";
-import { Product } from "@/types/pos";
+import { Product, Supplier } from "@/types/pos";
 import { AnimatePresence, motion } from "framer-motion";
-import { Barcode, Box, Trash2 } from "lucide-react";
+import { Barcode, Box, Trash2, Check, ChevronsUpDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Pencil } from "lucide-react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 interface NewProduct {
   barcode: string;
@@ -35,7 +63,7 @@ const initialNewProduct: NewProduct = {
 };
 
 export const Inventory = () => {
-  const { isOnline } = useAuth();
+  const { isOnline, user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,6 +73,28 @@ export const Inventory = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newProduct, setNewProduct] = useState<NewProduct>(initialNewProduct);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editedProduct, setEditedProduct] = useState({
+    name: "",
+    barcode: "",
+    price: "",
+    stock: "",
+    category: "",
+    minStock: "",
+  });
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [restockOpen, setRestockOpen] = useState(false);
+  const [restock, setRestock] = useState({
+    productId: "",
+    supplierId: "",
+    quantity: "",
+    costPrice: "",
+    invoiceNumber: "",
+    notes: "",
+  });
+  const [productOpen, setProductOpen] = useState(false);
+  const [supplierOpen, setSupplierOpen] = useState(false);
 
   // Debounced search implementation without lodash
   const searchTimeout = useRef<NodeJS.Timeout | undefined>(undefined);
@@ -93,6 +143,23 @@ export const Inventory = () => {
     };
 
     loadProducts();
+  }, [isOnline]);
+
+  // Load suppliers
+  useEffect(() => {
+    const loadSuppliers = async () => {
+      try {
+        const fetchedSuppliers = await getAllSuppliers();
+        setSuppliers(fetchedSuppliers);
+      } catch (error) {
+        console.error("Error loading suppliers:", error);
+        toast.error("Failed to load suppliers");
+      }
+    };
+
+    if (isOnline) {
+      loadSuppliers();
+    }
   }, [isOnline]);
 
   // Filter and sort products
@@ -209,6 +276,134 @@ export const Inventory = () => {
     }
   };
 
+  const handleProductClick = (product: Product) => {
+    setSelectedProduct(product);
+    setEditedProduct({
+      name: product.name,
+      barcode: product.barcode,
+      price: product.price.toString(),
+      stock: product.stock.toString(),
+      category: product.category || "",
+      minStock: (product.minStock || "").toString(),
+    });
+  };
+
+  const handleEditProduct = async () => {
+    if (!selectedProduct) return;
+
+    try {
+      setLoading(true);
+      const updatedProduct = {
+        name: editedProduct.name,
+        barcode: editedProduct.barcode,
+        price: parseFloat(editedProduct.price),
+        stock: parseInt(editedProduct.stock),
+        category: editedProduct.category,
+        minStock: editedProduct.minStock ? parseInt(editedProduct.minStock) : 0,
+      };
+
+      await updateProduct(selectedProduct.id, updatedProduct);
+
+      // Update local state and cache
+      const freshProducts = await getAllProducts();
+      setProducts(freshProducts);
+      saveProductsToCache(freshProducts);
+
+      toast.success("Product updated successfully");
+      setEditMode(false);
+      setSelectedProduct(null);
+    } catch (error) {
+      console.error("Error updating product:", error);
+      toast.error("Failed to update product");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRestock = async () => {
+    if (!isOnline) {
+      toast.error("Cannot restock while offline");
+      return;
+    }
+
+    if (
+      !restock.productId ||
+      !restock.supplierId ||
+      !restock.quantity ||
+      !restock.costPrice
+    ) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const quantity = parseInt(restock.quantity);
+      const costPrice = parseFloat(restock.costPrice);
+
+      if (isNaN(quantity) || quantity <= 0) {
+        toast.error("Please enter a valid quantity");
+        return;
+      }
+
+      if (isNaN(costPrice) || costPrice < 0) {
+        toast.error("Please enter a valid cost price");
+        return;
+      }
+
+      // Create restock record
+      const product = products.find((p) => p.id === restock.productId);
+      const supplier = suppliers.find((s) => s.id === restock.supplierId);
+
+      if (!product || !supplier) {
+        toast.error("Product or supplier not found");
+        return;
+      }
+
+      await createRestockRecord({
+        productId: restock.productId,
+        productName: product.name,
+        supplierId: restock.supplierId,
+        supplierName: supplier.name,
+        quantity,
+        costPrice,
+        totalCost: quantity * costPrice,
+        invoiceNumber: restock.invoiceNumber,
+        notes: restock.notes,
+        userId: user?.uid || "",
+        userName: user?.displayName || "",
+      });
+
+      // Update product stock
+      await updateProduct(product.id, {
+        ...product,
+        stock: product.stock + quantity,
+      });
+
+      // Refresh products list
+      const freshProducts = await getAllProducts();
+      setProducts(freshProducts);
+      saveProductsToCache(freshProducts);
+
+      toast.success("Product restocked successfully");
+      setRestockOpen(false);
+      setRestock({
+        productId: "",
+        supplierId: "",
+        quantity: "",
+        costPrice: "",
+        invoiceNumber: "",
+        notes: "",
+      });
+    } catch (error) {
+      console.error("Error restocking product:", error);
+      toast.error("Failed to restock product");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div
       style={{
@@ -229,37 +424,13 @@ export const Inventory = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* <button
-              onClick={() => setFilterLowStock(!filterLowStock)}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                filterLowStock
-                  ? "bg-yellow-100 text-yellow-800"
-                  : "bg-gray-100 text-gray-600"
-              }`}
+            <Button
+              style={{ paddingLeft: "1rem", paddingRight: "1rem" }}
+              onClick={() => setRestockOpen(true)}
             >
-              Low Stock
-            </button>
-            <select
-              value={sortBy}
-              onChange={(e) =>
-                setSortBy(e.target.value as "name" | "stock" | "price")
-              }
-              className="px-3 py-1.5 rounded text-sm border focus:outline-none"
-            >
-              <option value="name">Sort by Name</option>
-              <option value="stock">Sort by Stock</option>
-              <option value="price">Sort by Price</option>
-            </select>
-            <button
-              onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-              className="p-1.5 rounded hover:bg-gray-100"
-            >
-              {sortOrder === "asc" ? (
-                <Icons.chevronRight className="h-4 w-4 rotate-[-90deg]" />
-              ) : (
-                <Icons.chevronRight className="h-4 w-4 rotate-90" />
-              )}
-            </button> */}
+              <Box className="h-4 w-4 mr-2" />
+              Restock
+            </Button>
           </div>
         </div>
 
@@ -287,7 +458,8 @@ export const Inventory = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="rounded-lg border shadow-sm hover:shadow-md transition-shadow p-4"
+                className="rounded-lg border shadow-sm hover:shadow-md transition-shadow p-4 cursor-pointer"
+                onClick={() => handleProductClick(product)}
               >
                 <div className="space-y-2">
                   <div className="flex justify-between items-start w-full">
@@ -298,12 +470,15 @@ export const Inventory = () => {
                         {product.barcode}
                       </p>
                     </div>
-                    <button
-                      onClick={() => setProductToDelete(product)}
+                    {/* <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setProductToDelete(product);
+                      }}
                       className="p-1.5 text-red-500 hover:text-red-600 transition-colors"
                     >
                       <Trash2 className="h-4 w-4" />
-                    </button>
+                    </button> */}
                   </div>
 
                   <div className="flex justify-between items-center">
@@ -460,6 +635,410 @@ export const Inventory = () => {
           </motion.div>
         </div>
       )}
+
+      {/* Product Details/Edit Dialog */}
+      <Dialog
+        open={!!selectedProduct}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedProduct(null);
+            setEditMode(false);
+          }
+        }}
+      >
+        <DialogContent className="bg-white dark:bg-gray-950 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex justify-between items-center">
+              <span>{editMode ? "Edit Product" : "Product Details"}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <DialogDescription />
+
+          <div className="space-y-4">
+            {editMode ? (
+              // Edit Mode
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">Name *</Label>
+                  <Input
+                    id="edit-name"
+                    value={editedProduct.name}
+                    onChange={(e) =>
+                      setEditedProduct({
+                        ...editedProduct,
+                        name: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-barcode">Barcode *</Label>
+                  <Input
+                    id="edit-barcode"
+                    value={editedProduct.barcode}
+                    onChange={(e) =>
+                      setEditedProduct({
+                        ...editedProduct,
+                        barcode: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-price">Price (OMR) *</Label>
+                  <Input
+                    id="edit-price"
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={editedProduct.price}
+                    onChange={(e) =>
+                      setEditedProduct({
+                        ...editedProduct,
+                        price: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-stock">Stock *</Label>
+                  <Input
+                    id="edit-stock"
+                    type="number"
+                    min="0"
+                    value={editedProduct.stock}
+                    onChange={(e) =>
+                      setEditedProduct({
+                        ...editedProduct,
+                        stock: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-category">Category</Label>
+                  <Input
+                    id="edit-category"
+                    value={editedProduct.category}
+                    onChange={(e) =>
+                      setEditedProduct({
+                        ...editedProduct,
+                        category: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-minStock">Minimum Stock Level</Label>
+                  <Input
+                    id="edit-minStock"
+                    type="number"
+                    min="0"
+                    value={editedProduct.minStock}
+                    onChange={(e) =>
+                      setEditedProduct({
+                        ...editedProduct,
+                        minStock: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </>
+            ) : (
+              // View Mode
+              <>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Name</p>
+                  <p className="font-medium">{selectedProduct?.name}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Barcode</p>
+                  <p className="font-medium">{selectedProduct?.barcode}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Price</p>
+                  <p className="font-medium">
+                    OMR {selectedProduct?.price.toFixed(3)}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Stock</p>
+                  <p className="font-medium">{selectedProduct?.stock}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Category</p>
+                  <p className="font-medium">
+                    {selectedProduct?.category || "-"}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Minimum Stock</p>
+                  <p className="font-medium">
+                    {selectedProduct?.minStock || "-"}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          {!editMode && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                style={{ flex: 1 }}
+                onClick={() => setEditMode(true)}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+              <Button
+                variant="outline"
+                style={{ flex: 1 }}
+                className="hover:text-red-500"
+                onClick={() => {
+                  setProductToDelete(selectedProduct);
+                  setSelectedProduct(null);
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+            </div>
+          )}
+
+          <DialogFooter>
+            {editMode ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setEditMode(false);
+                    if (selectedProduct) {
+                      setEditedProduct({
+                        name: selectedProduct.name,
+                        barcode: selectedProduct.barcode,
+                        price: selectedProduct.price.toString(),
+                        stock: selectedProduct.stock.toString(),
+                        category: selectedProduct.category || "",
+                        minStock: (selectedProduct.minStock || "").toString(),
+                      });
+                    }
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleEditProduct}>Save Changes</Button>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedProduct(null);
+                  setEditMode(false);
+                }}
+              >
+                Close
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Restock Dialog */}
+      <Dialog open={restockOpen} onOpenChange={setRestockOpen}>
+        <DialogContent className="bg-white dark:bg-gray-950">
+          <DialogHeader>
+            <DialogTitle>Restock Inventory</DialogTitle>
+            <DialogDescription />
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="product">Product *</Label>
+              <Popover open={productOpen} onOpenChange={setProductOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={productOpen}
+                    className="justify-between w-full"
+                  >
+                    <span className="truncate overflow-ellipsis">
+                      {restock.productId
+                        ? products.find(
+                            (product) => product.id === restock.productId
+                          )?.name
+                        : "Select product..."}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput
+                      placeholder="Search product..."
+                      className="h-9"
+                    />
+                    <CommandEmpty>No product found.</CommandEmpty>
+                    <CommandGroup className="max-h-[200px] overflow-auto">
+                      {products.map((product) => (
+                        <CommandItem
+                          key={product.id}
+                          value={product.name}
+                          onSelect={() => {
+                            setRestock({ ...restock, productId: product.id });
+                            setProductOpen(false);
+                          }}
+                          className="truncate"
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4 shrink-0",
+                              restock.productId === product.id
+                                ? "opacity-100"
+                                : "opacity-0"
+                            )}
+                          />
+                          {product.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="supplier">Supplier *</Label>
+              <Popover open={supplierOpen} onOpenChange={setSupplierOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={supplierOpen}
+                    className="justify-between w-full"
+                  >
+                    <span className="truncate overflow-ellipsis">
+                      {restock.supplierId
+                        ? suppliers.find(
+                            (supplier) => supplier.id === restock.supplierId
+                          )?.name
+                        : "Select supplier..."}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput
+                      placeholder="Search supplier..."
+                      className="h-9"
+                    />
+                    <CommandEmpty>No supplier found.</CommandEmpty>
+                    <CommandGroup className="max-h-[200px] overflow-auto">
+                      {suppliers.map((supplier) => (
+                        <CommandItem
+                          key={supplier.id}
+                          value={supplier.name}
+                          onSelect={() => {
+                            setRestock({ ...restock, supplierId: supplier.id });
+                            setSupplierOpen(false);
+                          }}
+                          className="truncate"
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4 shrink-0",
+                              restock.supplierId === supplier.id
+                                ? "opacity-100"
+                                : "opacity-0"
+                            )}
+                          />
+                          {supplier.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="quantity">Quantity *</Label>
+              <Input
+                id="quantity"
+                type="number"
+                min="1"
+                value={restock.quantity}
+                onChange={(e) =>
+                  setRestock({ ...restock, quantity: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="costPrice">Cost Price (OMR) *</Label>
+              <Input
+                id="costPrice"
+                type="number"
+                step="0.001"
+                min="0"
+                value={restock.costPrice}
+                onChange={(e) =>
+                  setRestock({ ...restock, costPrice: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="invoiceNumber">Invoice Number</Label>
+              <Input
+                id="invoiceNumber"
+                value={restock.invoiceNumber}
+                onChange={(e) =>
+                  setRestock({ ...restock, invoiceNumber: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Input
+                id="notes"
+                value={restock.notes}
+                onChange={(e) =>
+                  setRestock({ ...restock, notes: e.target.value })
+                }
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRestockOpen(false);
+                setRestock({
+                  productId: "",
+                  supplierId: "",
+                  quantity: "",
+                  costPrice: "",
+                  invoiceNumber: "",
+                  notes: "",
+                });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleRestock} disabled={loading}>
+              {loading ? (
+                <Icons.spinner className="h-4 w-4 animate-spin" />
+              ) : (
+                "Restock"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

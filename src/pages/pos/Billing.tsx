@@ -1,5 +1,7 @@
 import Back from "@/components/back";
+import { CreditDetailsDialog } from "@/components/dialogs/CreditDetailsDialog";
 import IndexDropDown from "@/components/index-dropdown";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +12,7 @@ import {
 import { Icons } from "@/components/ui/icons";
 import { db } from "@/config/firebase";
 import { useAuth } from "@/context/AuthContext";
+import { createCreditTransaction } from "@/services/firebase/credit";
 import {
   createCustomer,
   createCustomerPurchase,
@@ -85,6 +88,8 @@ export const Billing = () => {
   >({});
   const [isSummaryVisible, setIsSummaryVisible] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [showCreditDialog, setShowCreditDialog] = useState(false);
+  const [isProcessingCredit, setIsProcessingCredit] = useState(false);
 
   // Initialize products cache from localStorage and fetch fresh data if online
   useEffect(() => {
@@ -578,6 +583,100 @@ export const Billing = () => {
     setTimeout(() => setIsClearing(false), 100);
   };
 
+  const handleCreditPurchase = async (customerDetails: {
+    name: string;
+    phone?: string;
+  }) => {
+    try {
+      setIsProcessingCredit(true);
+
+      // Use existing customer name if available, otherwise use the one from dialog
+      const finalCustomerName = customerName.trim() || customerDetails.name;
+
+      // Create customer purchase record first (bill)
+      const purchase: Omit<CustomerPurchase, "id"> = {
+        customerId: selectedCustomer?.id || "CREDIT_CUSTOMER", // Use selected customer ID if available
+        customerName: finalCustomerName,
+        items,
+        subtotal,
+        tax,
+        total,
+        paymentMethod: "credit",
+        date: new Date(),
+        userId: effectiveUser?.uid || "UNKNOWN",
+        userName: userData?.displayName || "Unknown",
+      };
+
+      // Create bill record
+      if (isOnline) {
+        await createCustomerPurchase(purchase);
+      } else {
+        // Store offline purchase
+        const offlinePurchases = JSON.parse(
+          localStorage.getItem("offlinePurchases") || "[]"
+        );
+        offlinePurchases.push(purchase);
+        localStorage.setItem(
+          "offlinePurchases",
+          JSON.stringify(offlinePurchases)
+        );
+      }
+
+      // Update inventory for each item
+      for (const item of items) {
+        // Update local cache first for instant UI update
+        const product = productsCache[item.barcode];
+        if (product) {
+          const updatedProduct = {
+            ...product,
+            stock: Math.max(0, product.stock - item.quantity),
+          };
+
+          // Update in-memory cache
+          setProductsCache((prev) => ({
+            ...prev,
+            [item.barcode]: updatedProduct,
+          }));
+
+          // Update localStorage cache
+          updateCachedProduct(updatedProduct);
+
+          if (isOnline) {
+            // Update database
+            try {
+              await updateProductStock(item.productId, item.quantity);
+            } catch (error) {
+              console.error("Error updating product stock:", error);
+              toast.error("Failed to update product stock in database");
+            }
+          }
+        }
+      }
+
+      // Create credit transaction
+      await createCreditTransaction({
+        customerName: finalCustomerName,
+        customerPhone: customerDetails.phone,
+        items: items,
+        totalAmount: total,
+        remainingAmount: total,
+        date: new Date().toISOString(),
+      });
+
+      // Clear the bill and customer name
+      setItems([]);
+      setCustomerName("");
+      setSelectedCustomer(null);
+      toast.success("Credit transaction created successfully");
+      setShowCreditDialog(false);
+    } catch (error) {
+      console.error("Error creating credit transaction:", error);
+      toast.error("Failed to create credit transaction");
+    } finally {
+      setIsProcessingCredit(false);
+    }
+  };
+
   return (
     <div
       style={{
@@ -802,19 +901,41 @@ export const Billing = () => {
                   alignItems: "center",
                 }}
               >
-                <button
+                <Button
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem",
+                    paddingLeft: "1rem",
+                    paddingRight: "1rem",
+                    background: "rgba(100 100 100/ 20%)",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  <PenLine width={"1.25rem"} />
+                </Button>
+                <Button
+                  onClick={handleClearItems}
+                  disabled={items.length === 0}
                   style={{
                     paddingLeft: "1rem",
                     paddingRight: "1rem",
                     background: "rgba(100 100 100/ 20%)",
+                    fontSize: "0.9rem",
                   }}
                 >
-                  <PenLine />
-                  Adjust Bill
-                </button>
+                  <MinusCircle width={"1.25rem"} />
+                  Clear Bill
+                </Button>
               </div>
 
-              <div>
+              <div
+                style={{
+                  height: "2.5rem",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
                 {!isSummaryVisible && (
                   <div
                     style={{
@@ -825,20 +946,24 @@ export const Billing = () => {
                     }}
                   >
                     {/* <p>Checkout</p> */}
-                    <button
+                    <Button
                       style={{
                         background: "none",
                         border: "1px solid rgba(100 100 100/ 50%)",
                         margin: "",
                         paddingLeft: "1rem",
                         paddingRight: "1rem",
+                        fontSize: "0.9rem",
                       }}
                       onClick={() => setIsSummaryVisible(true)}
                       className=" bg-white dark:bg-gray-800 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-20"
                     >
                       Continue
-                      <ArrowLeftToLine className="h-6 w-6 rotate-180" />
-                    </button>
+                      <ArrowLeftToLine
+                        style={{ width: "1.25rem" }}
+                        className=" rotate-180"
+                      />
+                    </Button>
                   </div>
                 )}
               </div>
@@ -960,7 +1085,7 @@ export const Billing = () => {
               Bill Summary
             </h3>
             <div className="flex items-center gap-2">
-              <button
+              {/* <button
                 style={{
                   paddingLeft: "1rem",
                   paddingRight: "1rem",
@@ -973,7 +1098,7 @@ export const Billing = () => {
               >
                 <MinusCircle width={"1rem"} />
                 Clear Bill
-              </button>
+              </button> */}
               <button
                 onClick={() => setIsSummaryVisible(!isSummaryVisible)}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
@@ -1051,34 +1176,32 @@ export const Billing = () => {
 
             {/* Payment Methods */}
             <div style={{}} className="">
-              <div
-                style={{ marginBottom: "0.35rem" }}
-                className="flex grid-cols-2 gap-2 h-11"
-              >
-                <button
-                  style={{ flex: 1 }}
-                  onClick={() => handleCheckout("card")}
-                  disabled={loading || items.length === 0}
+              <div className="flex gap-2 mt-4">
+                <Button
+                  style={{ height: "2.5rem" }}
+                  className="flex-1"
+                  variant="outline"
+                  onClick={() => setShowCreditDialog(true)}
+                  disabled={items.length === 0 || isProcessingCredit}
                 >
-                  <Icons.creditCard className="h-4 w-4" />
-                  {loading ? (
-                    <Icons.spinner className="h-4 w-4 animate-spin" />
+                  {isProcessingCredit ? (
+                    <>
+                      <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
                   ) : (
                     "Credit"
                   )}
-                </button>
-                <button
-                  style={{ flex: 1, background: "crimson", color: "white" }}
+                </Button>
+                <Button
+                  style={{ height: "2.5rem", background: "crimson" }}
+                  className="flex-1"
                   onClick={() => handleCheckout("cash")}
                   disabled={loading || items.length === 0}
                 >
-                  <Icons.banknote className="h-4 w-4" />
-                  {loading ? (
-                    <Icons.spinner className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Checkout"
-                  )}
-                </button>
+                  {loading && <LoaderCircle className="animate-spin" />}
+                  Checkout
+                </Button>
               </div>
             </div>
           </div>
@@ -1186,6 +1309,16 @@ export const Billing = () => {
           <DialogDescription />
         </DialogContent>
       </Dialog>
+
+      {/* Credit Details Dialog */}
+      <CreditDetailsDialog
+        isOpen={showCreditDialog}
+        onClose={() => setShowCreditDialog(false)}
+        onSubmit={handleCreditPurchase}
+        isLoading={isProcessingCredit}
+        total={total}
+        existingCustomerName={customerName.trim()}
+      />
     </div>
   );
 };

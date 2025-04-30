@@ -5,7 +5,6 @@ import {
   Book,
   Box,
   DollarSign,
-  Target,
   Ticket,
   Truck,
   UserRoundCog,
@@ -52,11 +51,16 @@ export default function Index() {
             <div
               style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
             >
-              <Target color="crimson" />
+              {/* <Target color="crimson" /> */}
+              <img
+                src="/icon512_maskable.png"
+                alt="logo"
+                style={{ width: "2.5rem" }}
+              />
               <p style={{ fontSize: "1.5rem", fontWeight: 600 }}>PointSale</p>
-              <p style={{ fontSize: "0.8rem", fontWeight: 400, opacity: 0.5 }}>
+              {/* <p style={{ fontSize: "0.8rem", fontWeight: 400, opacity: 0.5 }}>
                 v1.1
-              </p>
+              </p> */}
             </div>
 
             <div className="flex items-center gap-2">

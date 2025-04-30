@@ -18,7 +18,8 @@ import { Inventory } from "./pages/pos/Inventory";
 import UserManagement from "./pages/user-management";
 import { RoleProtectedRoute } from "./components/common/RoleProtectedRoute";
 import Suppliers from "./pages/Suppliers";
-
+import CreditBook from "./pages/Credit-Book";
+import Bills from "./pages/Bills";
 function App() {
   return (
     <ThemeProvider>
@@ -86,6 +87,24 @@ function App() {
               element={
                 <RoleProtectedRoute allowedRoles={["admin"]}>
                   <Suppliers />
+                </RoleProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/credit-book"
+              element={
+                <RoleProtectedRoute allowedRoles={["admin"]}>
+                  <CreditBook />
+                </RoleProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/bills"
+              element={
+                <RoleProtectedRoute allowedRoles={["admin"]}>
+                  <Bills />
                 </RoleProtectedRoute>
               }
             />

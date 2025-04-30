@@ -41,6 +41,8 @@ export interface InventoryTransaction {
   date: Date;
   userId: string;
   billId?: string;
+  costPrice?: number;
+  supplierId?: string;
 }
 
 export interface Customer {
@@ -62,8 +64,53 @@ export interface CustomerPurchase {
   subtotal: number;
   tax: number;
   total: number;
-  paymentMethod: "cash" | "card";
+  paymentMethod: "cash" | "card" | "credit";
   date: Date;
+  userId: string;
+  userName: string;
+}
+
+export interface CreditTransaction {
+  id: string;
+  customerName: string;
+  customerPhone?: string;
+  items: BillItem[];
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  date: string;
+  status: "pending" | "partially_paid" | "paid";
+  payments: Payment[];
+}
+
+export interface Payment {
+  id: string;
+  amount: number;
+  date: string;
+  note?: string;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  createdAt: Date;
+}
+
+export interface RestockRecord {
+  id: string;
+  productId: string;
+  productName: string;
+  supplierId: string;
+  supplierName: string;
+  quantity: number;
+  costPrice: number;
+  totalCost: number;
+  date: Date;
+  invoiceNumber?: string;
+  notes?: string;
   userId: string;
   userName: string;
 }
