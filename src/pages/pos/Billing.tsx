@@ -951,7 +951,10 @@ export const Billing = () => {
 
             {/* Payment Methods */}
             <div style={{}} className="">
-              <div className="flex grid-cols-2 gap-2 h-11">
+              <div
+                style={{ marginBottom: "0.35rem" }}
+                className="flex grid-cols-2 gap-2 h-11"
+              >
                 <button
                   style={{ flex: 1 }}
                   onClick={() => handleCheckout("card")}
