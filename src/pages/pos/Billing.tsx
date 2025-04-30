@@ -712,7 +712,10 @@ export const Billing = () => {
             >
               {userData?.role === "admin" && <Back />}
               {/* <Target color="crimson" /> */}
-              <h2 style={{ marginLeft: "", fontSize: "1.5rem" }} className=" ">
+              <h2
+                style={{ marginLeft: "0.5rem", fontSize: "1.5rem" }}
+                className=" "
+              >
                 Billing
               </h2>
             </div>
