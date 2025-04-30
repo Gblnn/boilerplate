@@ -621,7 +621,7 @@ export const Billing = () => {
           {/* Scrollable Items List */}
           <div
             style={{
-              height: "calc(100vh - 16rem)",
+              flex: 1,
               paddingTop: "0.5rem",
               paddingBottom: "0.5rem",
               padding: "0.75rem",
@@ -754,7 +754,7 @@ export const Billing = () => {
               boxShadow: "1px 1px 10px rgba(0, 0, 0, 0.2)",
               borderTop: "1px solid rgba(100 100 100/ 20%)",
               borderBottom: "1px solid rgba(100 100 100/ 20%)",
-              position: "fixed",
+              // position: "fixed",
               padding: "0.5rem",
               // marginBottom: "1.5rem",
               marginBottom: "env(safe-area-inset-bottom)",
@@ -764,9 +764,9 @@ export const Billing = () => {
               background: "",
               zIndex: 30,
             }}
-            className={`md:relative dark:bg-gray-950 ${
-              isSummaryVisible ? "md:w-[calc(100%-350px)]" : "md:w-full"
-            } md:transition-all md:duration-300 md:ease-in-out`}
+            // className={`md:relative dark:bg-gray-950 ${
+            //   isSummaryVisible ? "md:w-[calc(100%-350px)]" : "md:w-full"
+            // } md:transition-all md:duration-300 md:ease-in-out`}
           >
             {/* Add persistent toggle button when summary is hidden */}
             <div
