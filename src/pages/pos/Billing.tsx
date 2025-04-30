@@ -1091,7 +1091,7 @@ export const Billing = () => {
         <div
           style={{
             border: "",
-            marginBottom: "env(safe-area-inset-bottom)",
+
             position: "absolute",
             bottom: 0,
             right: 0,
