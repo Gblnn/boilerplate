@@ -834,7 +834,7 @@ export const Billing = () => {
                         paddingRight: "1rem",
                       }}
                       onClick={() => setIsSummaryVisible(true)}
-                      className=" bg-white dark:bg-gray-800 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-20"
+                      className=" bg-white dark:bg-gray-800 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-20"
                     >
                       Continue
                       <ArrowLeftToLine className="h-6 w-6 rotate-180" />
