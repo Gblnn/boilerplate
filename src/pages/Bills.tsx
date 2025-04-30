@@ -215,12 +215,15 @@ export default function Bills() {
 
       {/* Bill Details Dialog */}
       <Dialog open={!!selectedBill} onOpenChange={() => setSelectedBill(null)}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto bg-white dark:bg-gray-950">
-          <DialogHeader>
+        <DialogContent className=" bg-white dark:bg-gray-950">
+          <DialogHeader style={{ display: "flex", border: "solid" }}>
             <DialogTitle>Bill Details</DialogTitle>
           </DialogHeader>
           {selectedBill && (
-            <div className="space-y-4">
+            <div
+              style={{ border: "solid", width: "18rem" }}
+              className="space-y-4"
+            >
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-500">Customer</p>

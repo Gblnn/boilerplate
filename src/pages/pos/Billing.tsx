@@ -48,6 +48,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { jsPDF } from "jspdf";
 
 export const Billing = () => {
   const { user, userData, isOnline } = useAuth();
@@ -90,6 +91,14 @@ export const Billing = () => {
   const [isClearing, setIsClearing] = useState(false);
   const [showCreditDialog, setShowCreditDialog] = useState(false);
   const [isProcessingCredit, setIsProcessingCredit] = useState(false);
+  const [showPdfDialog, setShowPdfDialog] = useState(false);
+  const [pendingPaymentMethod, setPendingPaymentMethod] = useState<
+    "cash" | "card" | "credit" | null
+  >(null);
+  const [creditDetails, setCreditDetails] = useState<{
+    customerName: string;
+    customerPhone?: string;
+  } | null>(null);
 
   // Initialize products cache from localStorage and fetch fresh data if online
   useEffect(() => {
@@ -494,20 +503,28 @@ export const Billing = () => {
       return;
     }
 
+    // Set pending payment method and show PDF dialog
+    setPendingPaymentMethod(paymentMethod);
+    setShowPdfDialog(true);
+  };
+
+  const processCheckout = async () => {
+    if (!pendingPaymentMethod) return;
+
     try {
       setLoading(true);
 
       // Create customer purchase record
       const purchase: Omit<CustomerPurchase, "id"> = {
-        customerId: selectedCustomer.id,
-        customerName: selectedCustomer.name,
+        customerId: selectedCustomer!.id,
+        customerName: selectedCustomer!.name,
         items,
         subtotal,
         tax,
         total,
-        paymentMethod,
+        paymentMethod: pendingPaymentMethod,
         date: new Date(),
-        userId: effectiveUser.uid,
+        userId: effectiveUser!.uid,
         userName: userData?.displayName || "Unknown",
       };
 
@@ -545,7 +562,7 @@ export const Billing = () => {
       // Create purchase record and update customer stats
       if (isOnline) {
         await createCustomerPurchase(purchase);
-        await updateCustomerPurchaseStats(selectedCustomer.id, total);
+        await updateCustomerPurchaseStats(selectedCustomer!.id, total);
       } else {
         // In offline mode, store the purchase in local storage
         const offlinePurchases = JSON.parse(
@@ -562,11 +579,19 @@ export const Billing = () => {
       setItems([]);
       setCustomerName("");
       setSelectedCustomer(null);
+      setPendingPaymentMethod(null);
+
+      // Hide bill summary on mobile after successful checkout
+      if (window.innerWidth < 768) {
+        // 768px is the md breakpoint in Tailwind
+        setIsSummaryVisible(false);
+      }
     } catch (error: any) {
       toast.error(error.message || "Error processing purchase");
       console.error(error);
     } finally {
       setLoading(false);
+      setShowPdfDialog(false);
     }
   };
 
@@ -587,15 +612,46 @@ export const Billing = () => {
     name: string;
     phone?: string;
   }) => {
+    if (!effectiveUser) {
+      toast.error("Please log in");
+      return;
+    }
+
+    if (items.length === 0) {
+      toast.error("Cart is empty");
+      return;
+    }
+
+    try {
+      // Store credit details for later use
+      const creditInfo = {
+        customerName: customerName.trim() || customerDetails.name,
+        customerPhone: customerDetails.phone,
+      };
+
+      // Store credit info in state for use after PDF dialog
+      setCreditDetails(creditInfo);
+
+      // Set pending payment method and show PDF dialog
+      setPendingPaymentMethod("credit");
+      setShowCreditDialog(false);
+      setShowPdfDialog(true);
+    } catch (error) {
+      console.error("Error preparing credit transaction:", error);
+      toast.error("Failed to prepare credit transaction");
+    }
+  };
+
+  const processCreditPurchase = async () => {
+    if (!creditDetails) return;
+
     try {
       setIsProcessingCredit(true);
-
-      // Use existing customer name if available, otherwise use the one from dialog
-      const finalCustomerName = customerName.trim() || customerDetails.name;
+      const finalCustomerName = creditDetails.customerName;
 
       // Create customer purchase record first (bill)
       const purchase: Omit<CustomerPurchase, "id"> = {
-        customerId: selectedCustomer?.id || "CREDIT_CUSTOMER", // Use selected customer ID if available
+        customerId: selectedCustomer?.id || "CREDIT_CUSTOMER",
         customerName: finalCustomerName,
         items,
         subtotal,
@@ -611,7 +667,6 @@ export const Billing = () => {
       if (isOnline) {
         await createCustomerPurchase(purchase);
       } else {
-        // Store offline purchase
         const offlinePurchases = JSON.parse(
           localStorage.getItem("offlinePurchases") || "[]"
         );
@@ -624,7 +679,6 @@ export const Billing = () => {
 
       // Update inventory for each item
       for (const item of items) {
-        // Update local cache first for instant UI update
         const product = productsCache[item.barcode];
         if (product) {
           const updatedProduct = {
@@ -632,17 +686,13 @@ export const Billing = () => {
             stock: Math.max(0, product.stock - item.quantity),
           };
 
-          // Update in-memory cache
           setProductsCache((prev) => ({
             ...prev,
             [item.barcode]: updatedProduct,
           }));
-
-          // Update localStorage cache
           updateCachedProduct(updatedProduct);
 
           if (isOnline) {
-            // Update database
             try {
               await updateProductStock(item.productId, item.quantity);
             } catch (error) {
@@ -656,7 +706,7 @@ export const Billing = () => {
       // Create credit transaction
       await createCreditTransaction({
         customerName: finalCustomerName,
-        customerPhone: customerDetails.phone,
+        customerPhone: creditDetails.customerPhone,
         items: items,
         totalAmount: total,
         remainingAmount: total,
@@ -667,14 +717,261 @@ export const Billing = () => {
       setItems([]);
       setCustomerName("");
       setSelectedCustomer(null);
+      setCreditDetails(null);
+
+      // Hide bill summary on mobile
+      if (window.innerWidth < 768) {
+        setIsSummaryVisible(false);
+      }
+
       toast.success("Credit transaction created successfully");
-      setShowCreditDialog(false);
     } catch (error) {
       console.error("Error creating credit transaction:", error);
       toast.error("Failed to create credit transaction");
     } finally {
       setIsProcessingCredit(false);
+      setPendingPaymentMethod(null);
     }
+  };
+
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15; // Reduced margin
+    const contentWidth = pageWidth - 2 * margin;
+
+    // Helper function to add a new page
+    const addNewPage = () => {
+      doc.addPage();
+      y = margin;
+      // Add page number at the bottom
+      const pageNumber = doc.getNumberOfPages();
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      doc.text(`Page ${pageNumber}`, pageWidth / 2, pageHeight - 8, {
+        align: "center",
+      });
+    };
+
+    // Set initial y position
+    let y = margin;
+
+    // Add company header
+    doc.setFillColor(249, 250, 251);
+    doc.rect(0, 0, pageWidth, 32, "F"); // Reduced header height
+
+    doc.setFontSize(22); // Slightly smaller font
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold");
+    doc.text("INVOICE", margin, y + 8);
+
+    // Add invoice details on the right more compactly
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    const invoiceNumber = `INV-${new Date().getTime().toString().slice(-6)}`;
+
+    // Right column info with better alignment
+    const rightColumnX = pageWidth - margin;
+    const detailsStartY = y + 6;
+    const detailsSpacing = 5;
+
+    // Labels (right-aligned from right column start)
+    doc.setTextColor(100, 100, 100);
+    doc.text("Invoice Number:", rightColumnX - 60, detailsStartY);
+    doc.text("Date:", rightColumnX - 60, detailsStartY + detailsSpacing);
+    doc.text("Time:", rightColumnX - 60, detailsStartY + detailsSpacing * 2);
+
+    // Values (right-aligned to page edge)
+    doc.setTextColor(0, 0, 0);
+    doc.text(invoiceNumber, rightColumnX, detailsStartY, { align: "right" });
+    doc.text(
+      new Date().toLocaleDateString(),
+      rightColumnX,
+      detailsStartY + detailsSpacing,
+      { align: "right" }
+    );
+    doc.text(
+      new Date().toLocaleTimeString(),
+      rightColumnX,
+      detailsStartY + detailsSpacing * 2,
+      { align: "right" }
+    );
+
+    // Move down after header (reduced spacing)
+    y += 35;
+
+    // Add customer details section more compactly
+    doc.setFillColor(249, 250, 251);
+    doc.roundedRect(margin, y, contentWidth, 25, 2, 2, "F");
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text("Customer Details", margin + 8, y + 8);
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text("Name:", margin + 8, y + 18);
+    doc.setTextColor(0, 0, 0);
+    doc.text(selectedCustomer?.name || "Walk-in Customer", margin + 35, y + 18);
+
+    // Move down after customer details (reduced spacing)
+    y += 32;
+
+    // Add items table header
+    const columnWidths = [contentWidth - 85, 25, 30, 30]; // Increased item column width, reduced other columns
+    const startX = margin;
+
+    // Table header background
+    doc.setFillColor(249, 250, 251);
+    doc.rect(startX, y - 4, contentWidth, 10, "F");
+
+    // Add table headers
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(70, 70, 70);
+
+    // Calculate column positions
+    const colPositions = {
+      item: startX,
+      qty: startX + columnWidths[0],
+      price: startX + columnWidths[0] + columnWidths[1],
+      total: startX + columnWidths[0] + columnWidths[1] + columnWidths[2],
+    };
+
+    // Add headers with proper alignment
+    doc.text("Item", colPositions.item + 4, y);
+    doc.text("Qty", colPositions.qty + columnWidths[1] / 2, y, {
+      align: "center",
+    });
+    doc.text("Price", colPositions.price + columnWidths[2] / 2, y, {
+      align: "center",
+    });
+    doc.text("Total", colPositions.total + columnWidths[3] / 2, y, {
+      align: "center",
+    });
+
+    // Move down after header
+    y += 8;
+
+    // Add items with alternating background
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    items.forEach((item, index) => {
+      // Check if we need a new page
+      if (y > pageHeight - 70) {
+        addNewPage();
+      }
+
+      // Alternating row background
+      if (index % 2 === 0) {
+        doc.setFillColor(252, 252, 253);
+        doc.rect(startX, y - 4, contentWidth, 10, "F");
+      }
+
+      // Item details
+      doc.setTextColor(0, 0, 0);
+
+      // Calculate available width for item name and truncate if necessary
+      const maxNameWidth = columnWidths[0] - 8;
+      let displayName = item.name;
+      let textWidth = doc.getTextWidth(displayName);
+
+      if (textWidth > maxNameWidth) {
+        while (textWidth > maxNameWidth && displayName.length > 0) {
+          displayName = displayName.slice(0, -1);
+          textWidth = doc.getTextWidth(displayName + "...");
+        }
+        displayName += "...";
+      }
+
+      // Add item details with proper alignment
+      doc.text(displayName, colPositions.item + 4, y);
+      doc.text(
+        item.quantity.toString(),
+        colPositions.qty + columnWidths[1] / 2,
+        y,
+        { align: "center" }
+      );
+      doc.text(
+        item.price.toFixed(3),
+        colPositions.price + columnWidths[2] / 2,
+        y,
+        { align: "center" }
+      );
+      doc.text(
+        item.subtotal.toFixed(3),
+        colPositions.total + columnWidths[3] / 2,
+        y,
+        { align: "center" }
+      );
+
+      y += 10;
+    });
+
+    // Add totals section
+    y += 2;
+    doc.setDrawColor(230, 230, 230);
+    doc.line(startX, y - 2, startX + contentWidth, y - 2);
+
+    // Totals section with better alignment
+    const totalsStartX = startX + contentWidth - 80;
+    const totalsValueX = startX + contentWidth;
+    const totalsSpacing = 12;
+
+    // Subtotal
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(9);
+    doc.text("Subtotal:", totalsStartX, y + 6);
+    doc.setTextColor(0, 0, 0);
+    doc.text(subtotal.toFixed(3), totalsValueX, y + 6, { align: "right" });
+
+    if (isTaxEnabled) {
+      y += totalsSpacing;
+      doc.setTextColor(100, 100, 100);
+      doc.text("Tax (5%):", totalsStartX, y + 6);
+      doc.setTextColor(0, 0, 0);
+      doc.text(tax.toFixed(3), totalsValueX, y + 6, { align: "right" });
+    }
+
+    // Total with background
+    y += totalsSpacing;
+    doc.setFillColor(249, 250, 251);
+    doc.rect(totalsStartX - 10, y, 90, 12, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.text("Total:", totalsStartX, y + 8);
+    doc.text(`OMR ${total.toFixed(3)}`, totalsValueX, y + 8, {
+      align: "right",
+    });
+
+    // Add footer
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text("Thank you for your business!", pageWidth / 2, pageHeight - 15, {
+      align: "center",
+    });
+
+    // Add payment method stamp
+    if (pendingPaymentMethod) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(0, 150, 0);
+      doc.text(
+        pendingPaymentMethod.toUpperCase(),
+        pageWidth - margin,
+        pageHeight - 25,
+        { align: "right" }
+      );
+    }
+
+    // Save the PDF
+    const fileName = `invoice_${invoiceNumber}.pdf`;
+    doc.save(fileName);
   };
 
   return (
@@ -1322,6 +1619,50 @@ export const Billing = () => {
         total={total}
         existingCustomerName={customerName.trim()}
       />
+
+      {/* PDF Save Dialog */}
+      <Dialog open={showPdfDialog} onOpenChange={setShowPdfDialog}>
+        <DialogContent className="bg-white dark:bg-gray-950 sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Save Bill</DialogTitle>
+            <DialogDescription>
+              Would you like to save this bill as a PDF?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3">
+            <Button
+              className="flex-1"
+              variant="outline"
+              onClick={() => {
+                setShowPdfDialog(false);
+                if (pendingPaymentMethod === "credit") {
+                  processCreditPurchase();
+                } else {
+                  processCheckout();
+                }
+              }}
+            >
+              No, Skip
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={async () => {
+                setShowPdfDialog(false);
+                generatePDF();
+                if (pendingPaymentMethod === "credit") {
+                  await processCreditPurchase();
+                } else {
+                  await processCheckout();
+                }
+
+                toast.success("Invoice PDF has been generated and downloaded");
+              }}
+            >
+              Yes, Save PDF
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
