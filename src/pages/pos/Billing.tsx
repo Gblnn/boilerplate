@@ -1085,13 +1085,18 @@ export const Billing = () => {
 
       {/* Add persistent toggle button when summary is hidden */}
       {!isSummaryVisible && (
-        <div style={{ marginBottom: "env(safe-area-inset-bottom)" }}>
+        <div
+          style={{
+            border: "",
+            marginBottom: "env(safe-area-inset-bottom)",
+            position: "absolute",
+            bottom: 0,
+            right: 0,
+          }}
+        >
           <button
             style={{
-              position: "absolute",
-              bottom: 0,
-              right: 0,
-              margin: "1rem",
+              margin: "1.25rem",
               marginBottom: "9rem",
             }}
             onClick={() => setIsSummaryVisible(true)}
