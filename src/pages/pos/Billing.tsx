@@ -40,7 +40,6 @@ import {
   ChevronUp,
   LoaderCircle,
   MinusCircle,
-  Target,
   UserPlus,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -560,7 +559,7 @@ export const Billing = () => {
 
   return (
     <div
-      style={{ height: "-webkit-fill-available" }}
+      style={{ height: "" }}
       className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200"
     >
       {/* Main Content */}
@@ -586,10 +585,10 @@ export const Billing = () => {
               style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
             >
               {userData?.role === "admin" && <Back />}
-              <Target color="crimson" />
-              {/* <h2 style={{ marginLeft: "", fontSize: "1.5rem" }} className=" ">
+              {/* <Target color="crimson" /> */}
+              <h2 style={{ marginLeft: "", fontSize: "1.5rem" }} className=" ">
                 Billing
-              </h2> */}
+              </h2>
             </div>
             <div
               style={{
@@ -674,18 +673,32 @@ export const Billing = () => {
                         <Icons.minus className="h-4 w-4" />
                       </button>
                       <input
-                        style={{ background: "none", width: "4rem" }}
                         type="number"
                         min="1"
                         max={productsCache[item.barcode]?.stock || 999}
                         value={item.quantity}
-                        onChange={(e) => {
-                          const newQuantity = parseInt(e.target.value) || 1;
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                          const value = e.target.value;
+                          // Allow empty string for typing
+                          if (value === "") {
+                            handleQuantityChange(index, 1);
+                            return;
+                          }
+                          const newQuantity = parseInt(value);
                           if (
+                            !isNaN(newQuantity) &&
+                            newQuantity > 0 &&
                             newQuantity <=
-                            (productsCache[item.barcode]?.stock || 999)
+                              (productsCache[item.barcode]?.stock || 999)
                           ) {
                             handleQuantityChange(index, newQuantity);
+                          }
+                        }}
+                        onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
+                          // Ensure a valid value when input loses focus
+                          const value = e.target.value;
+                          if (value === "" || parseInt(value) < 1) {
+                            handleQuantityChange(index, 1);
                           }
                         }}
                         className="w-12 text-center font-medium text-sm border-none focus:outline-none focus:ring-0 bg-transparent"
@@ -717,7 +730,7 @@ export const Billing = () => {
               borderTop: "1px solid rgba(100 100 100/ 20%)",
               borderBottom: "1px solid rgba(100 100 100/ 20%)",
               position: "fixed",
-
+              padding: "0.5rem",
               // marginBottom: "1.5rem",
               marginBottom: "env(safe-area-inset-bottom)",
               bottom: 0,
@@ -985,7 +998,9 @@ export const Billing = () => {
                   className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
                   <div>
-                    <h3 className="font-medium">{product.name}</h3>
+                    <h3 style={{ width: "12rem" }} className="font-medium">
+                      {product.name}
+                    </h3>
                     <p
                       style={{
                         display: "flex",
@@ -1070,19 +1085,21 @@ export const Billing = () => {
 
       {/* Add persistent toggle button when summary is hidden */}
       {!isSummaryVisible && (
-        <button
-          style={{
-            position: "absolute",
-            bottom: 0,
-            right: 0,
-            margin: "1rem",
-            marginBottom: "9rem",
-          }}
-          onClick={() => setIsSummaryVisible(true)}
-          className=" bg-white dark:bg-gray-800 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-20"
-        >
-          <ArrowLeftToLine className="h-6 w-6 rotate-180" />
-        </button>
+        <div style={{ marginBottom: "env(safe-area-inset-bottom)" }}>
+          <button
+            style={{
+              position: "absolute",
+              bottom: 0,
+              right: 0,
+              margin: "1rem",
+              marginBottom: "9rem",
+            }}
+            onClick={() => setIsSummaryVisible(true)}
+            className=" bg-white dark:bg-gray-800 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-20"
+          >
+            <ArrowLeftToLine className="h-6 w-6 rotate-180" />
+          </button>
+        </div>
       )}
     </div>
   );

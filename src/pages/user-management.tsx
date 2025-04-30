@@ -153,7 +153,7 @@ export default function UserManagement() {
               {users.map((user) => (
                 <div
                   key={user.uid}
-                  className="flex items-center justify-between p-4 rounded-lg border bg-card text-card-foreground shadow-sm"
+                  className="flex items-center justify-between p-4 rounded-lg border bg-white dark:bg-gray-950 text-card-foreground shadow-sm"
                 >
                   <div>
                     <h3 className="font-medium">
