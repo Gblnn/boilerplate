@@ -40,6 +40,7 @@ import {
   ChevronUp,
   LoaderCircle,
   MinusCircle,
+  PenLine,
   UserPlus,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -253,10 +254,18 @@ export const Billing = () => {
 
   const handleQuantityChange = (index: number, quantity: number) => {
     const updatedItems = [...items];
+    const item = updatedItems[index];
+    const product = productsCache[item.barcode];
+
+    if (!product) return;
+
+    // Ensure quantity is within valid range
+    const validQuantity = Math.min(Math.max(1, quantity), product.stock);
+
     updatedItems[index] = {
-      ...updatedItems[index],
-      quantity,
-      subtotal: updatedItems[index].price * quantity,
+      ...item,
+      quantity: validQuantity,
+      subtotal: product.price * validQuantity,
     };
     setItems(updatedItems);
   };
@@ -612,10 +621,14 @@ export const Billing = () => {
           {/* Scrollable Items List */}
           <div
             style={{
-              height: "calc(100vh - 12rem)",
+              height: "calc(100vh - 16rem)",
               paddingTop: "0.5rem",
               paddingBottom: "0.5rem",
               padding: "0.75rem",
+              border: "",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "flex-end",
             }}
             className="overflow-y-auto"
           >
@@ -655,7 +668,7 @@ export const Billing = () => {
                   <div className="flex items-center gap-2 px-2">
                     <div
                       style={{ marginRight: "0.25rem" }}
-                      className="text-right min-w-[80px] text-sm font-medium "
+                      className="text-right min-w-[40px] text-sm font-medium "
                     >
                       {item.subtotal.toFixed(3)}
                     </div>
@@ -673,6 +686,7 @@ export const Billing = () => {
                         <Icons.minus className="h-4 w-4" />
                       </button>
                       <input
+                        style={{ background: "none", width: "4rem" }}
                         type="number"
                         min="1"
                         max={productsCache[item.barcode]?.stock || 999}
@@ -681,25 +695,36 @@ export const Billing = () => {
                           const value = e.target.value;
                           // Allow empty string for typing
                           if (value === "") {
-                            handleQuantityChange(index, 1);
                             return;
                           }
                           const newQuantity = parseInt(value);
-                          if (
-                            !isNaN(newQuantity) &&
-                            newQuantity > 0 &&
-                            newQuantity <=
-                              (productsCache[item.barcode]?.stock || 999)
-                          ) {
-                            handleQuantityChange(index, newQuantity);
+                          const availableStock =
+                            productsCache[item.barcode]?.stock || 999;
+
+                          if (!isNaN(newQuantity) && newQuantity > 0) {
+                            if (newQuantity > availableStock) {
+                              // Show tooltip with available stock
+                              toast.error(
+                                `Only ${availableStock} items available in stock`
+                              );
+                              // Set to max available stock
+                              handleQuantityChange(index, availableStock);
+                            } else {
+                              handleQuantityChange(index, newQuantity);
+                            }
                           }
                         }}
                         onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
-                          // Ensure a valid value when input loses focus
-                          const value = e.target.value;
-                          if (value === "" || parseInt(value) < 1) {
+                          // Set to 1 if input is empty when losing focus
+                          if (e.target.value === "") {
                             handleQuantityChange(index, 1);
                           }
+                        }}
+                        onFocus={(e: React.FocusEvent<HTMLInputElement>) => {
+                          e.target.select();
+                        }}
+                        onClick={(e: React.MouseEvent<HTMLInputElement>) => {
+                          e.currentTarget.select();
                         }}
                         className="w-12 text-center font-medium text-sm border-none focus:outline-none focus:ring-0 bg-transparent"
                       />
@@ -743,6 +768,63 @@ export const Billing = () => {
               isSummaryVisible ? "md:w-[calc(100%-350px)]" : "md:w-full"
             } md:transition-all md:duration-300 md:ease-in-out`}
           >
+            {/* Add persistent toggle button when summary is hidden */}
+            <div
+              style={{
+                border: "",
+                padding: "0.5rem",
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.75rem",
+                  alignItems: "center",
+                }}
+              >
+                <button
+                  style={{
+                    paddingLeft: "1rem",
+                    paddingRight: "1rem",
+                    background: "rgba(100 100 100/ 20%)",
+                  }}
+                >
+                  <PenLine />
+                  Adjust Bill
+                </button>
+              </div>
+
+              <div>
+                {!isSummaryVisible && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.75rem",
+                      fontSize: "",
+                    }}
+                  >
+                    {/* <p>Checkout</p> */}
+                    <button
+                      style={{
+                        background: "none",
+                        border: "1px solid rgba(100 100 100/ 50%)",
+                        margin: "",
+                        paddingLeft: "1rem",
+                        paddingRight: "1rem",
+                      }}
+                      onClick={() => setIsSummaryVisible(true)}
+                      className=" bg-white dark:bg-gray-800 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-20"
+                    >
+                      Continue
+                      <ArrowLeftToLine className="h-6 w-6 rotate-180" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
             <form onSubmit={handleBarcodeSubmit} className="p-2 space-y-2">
               {/* Customer Input */}
               <div
@@ -1046,6 +1128,7 @@ export const Billing = () => {
                 onChange={(e) => setStockSearchQuery(e.target.value)}
                 placeholder="Search products..."
                 className="w-full pl-8 pr-3 py-2 border rounded focus:outline-none focus:border-blue-500 text-sm"
+                autoFocus={false}
               />
             </div>
 
@@ -1085,30 +1168,6 @@ export const Billing = () => {
           <DialogDescription />
         </DialogContent>
       </Dialog>
-
-      {/* Add persistent toggle button when summary is hidden */}
-      {!isSummaryVisible && (
-        <div
-          style={{
-            border: "",
-
-            position: "absolute",
-            bottom: 0,
-            right: 0,
-          }}
-        >
-          <button
-            style={{
-              margin: "1.25rem",
-              marginBottom: "9rem",
-            }}
-            onClick={() => setIsSummaryVisible(true)}
-            className=" bg-white dark:bg-gray-800 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-20"
-          >
-            <ArrowLeftToLine className="h-6 w-6 rotate-180" />
-          </button>
-        </div>
-      )}
     </div>
   );
 };
