@@ -568,7 +568,7 @@ export const Billing = () => {
 
   return (
     <div
-      style={{ height: "" }}
+      style={{ border: "solid", paddingBottom: "env(safe-area-inset-bottom)" }}
       className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200"
     >
       {/* Main Content */}
@@ -756,8 +756,8 @@ export const Billing = () => {
               borderBottom: "1px solid rgba(100 100 100/ 20%)",
               // position: "fixed",
               padding: "0.5rem",
-              marginBottom: "1.5rem",
-              paddingBottom: "env(safe-area-inset-bottom)",
+              paddingBottom: "0.5rem",
+
               bottom: 0,
               left: 0,
               right: 0,
