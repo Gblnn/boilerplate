@@ -23,6 +23,8 @@ export default function Index() {
           background: "",
           height: "100svh",
           flexFlow: "column",
+          paddingLeft: "env(safe-area-inset-left)",
+          paddingRight: "env(safe-area-inset-right)",
         }}
       >
         <div

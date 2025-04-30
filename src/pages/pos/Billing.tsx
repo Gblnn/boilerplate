@@ -84,6 +84,7 @@ export const Billing = () => {
     Record<string, Customer>
   >({});
   const [isSummaryVisible, setIsSummaryVisible] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   // Initialize products cache from localStorage and fetch fresh data if online
   useEffect(() => {
@@ -163,13 +164,15 @@ export const Billing = () => {
       }
     };
 
-    // Only focus when items are added or removed, not when quantity changes
+    // Only focus when items are added (not when removed)
     if (items.length > 0) {
       const lastItem = items[items.length - 1];
-      if (lastItem.quantity === 1) {
+      // Only focus when a new item is added (quantity = 1)
+      if (lastItem.quantity === 1 && !lastItem.isRemoved) {
         handleFocus();
       }
-    } else {
+    } else if (items.length === 0 && !isClearing) {
+      // Only focus on initial mount, not when clearing items
       handleFocus();
     }
   }, [items.length]); // Only depend on items.length, not the entire items array
@@ -271,7 +274,13 @@ export const Billing = () => {
   };
 
   const handleRemoveItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
+    const updatedItems = items.filter((item, i) => {
+      if (i === index) {
+        item.isRemoved = true; // Mark item as removed
+      }
+      return i !== index;
+    });
+    setItems(updatedItems);
   };
 
   // Handle customer search
@@ -562,8 +571,11 @@ export const Billing = () => {
 
   const handleClearItems = () => {
     if (items.length === 0) return;
+    setIsClearing(true);
     setItems([]);
     toast.success("All items cleared from bill");
+    // Reset the clearing flag after a short delay
+    setTimeout(() => setIsClearing(false), 100);
   };
 
   return (

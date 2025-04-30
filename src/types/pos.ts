@@ -17,6 +17,7 @@ export interface BillItem {
   price: number;
   quantity: number;
   subtotal: number;
+  isRemoved?: boolean;
 }
 
 export interface Bill {

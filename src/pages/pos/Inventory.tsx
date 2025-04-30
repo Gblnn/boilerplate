@@ -210,7 +210,13 @@ export const Inventory = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white dark:bg-gray-950">
+    <div
+      style={{
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
+      }}
+      className="flex flex-col h-screen bg-white dark:bg-gray-950"
+    >
       {/* Header and Controls */}
       <div className="border-b p-4 space-y-4">
         <div className="flex items-center justify-between">

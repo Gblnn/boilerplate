@@ -79,7 +79,13 @@ export default function Suppliers() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
+    <div
+      style={{
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
+      }}
+      className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950"
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b dark:border-gray-800">
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
