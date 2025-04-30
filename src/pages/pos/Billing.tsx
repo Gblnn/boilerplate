@@ -569,7 +569,7 @@ export const Billing = () => {
   return (
     <div
       style={{
-        border: "solid",
+        border: "",
         paddingBottom: "env(safe-area-inset-bottom)",
         height: "100svh",
       }}
