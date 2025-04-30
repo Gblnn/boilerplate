@@ -5,7 +5,6 @@ import { UpdateUserDialog } from "@/components/dialogs/UpdateUserDialog";
 import { Button } from "@/components/ui/button";
 import { Icons } from "@/components/ui/icons";
 import { auth } from "@/config/firebase";
-import { useAuth } from "@/context/AuthContext";
 import {
   createUserData,
   deleteUserData,
@@ -14,7 +13,7 @@ import {
 } from "@/services/firebase/user";
 import { UserData, UserRole } from "@/types/auth";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { Edit, Plus, Trash2 } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -35,7 +34,7 @@ export default function UserManagement() {
   const [users, setUsers] = useState<UserData[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { userData } = useAuth();
+  // const { userData } = useAuth();
 
   // Fetch users on mount
   useEffect(() => {
@@ -132,7 +131,13 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="relative min-h-screen bg-white dark:bg-gray-950">
+    <div
+      style={{
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
+      }}
+      className="relative min-h-screen bg-white dark:bg-gray-950"
+    >
       <div className="flex flex-col h-screen">
         <div className="flex h-16 items-center justify-between border-b shadow-sm px-4">
           <div className="flex items-center gap-2">
@@ -152,6 +157,10 @@ export default function UserManagement() {
             <div className="grid gap-4">
               {users.map((user) => (
                 <div
+                  onClick={() => {
+                    setSelectedUser(user);
+                    setUpdateDialogOpen(true);
+                  }}
                   key={user.uid}
                   className="flex items-center justify-between p-4 rounded-lg border bg-white dark:bg-gray-950 text-card-foreground shadow-sm"
                 >
@@ -167,7 +176,8 @@ export default function UserManagement() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
+                    <ChevronRight />
+                    {/* <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => {
@@ -176,8 +186,8 @@ export default function UserManagement() {
                       }}
                     >
                       <Edit className="h-4 w-4" />
-                    </Button>
-                    {user.uid !== userData?.uid && (
+                    </Button> */}
+                    {/* {user.uid !== userData?.uid && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -188,7 +198,7 @@ export default function UserManagement() {
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
-                    )}
+                    )} */}
                   </div>
                 </div>
               ))}
@@ -222,7 +232,9 @@ export default function UserManagement() {
               setSelectedUser(null);
             }}
             onSubmit={handleUpdateUser}
+            onDelete={handleDeleteUser}
             isLoading={isUpdating}
+            isDeleting={isDeleting}
             user={selectedUser}
           />
         )}

@@ -8,53 +8,51 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Icons } from "@/components/ui/icons";
-import { UserData } from "@/types/auth";
 
-interface DeleteUserDialogProps {
+interface LogoutDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => Promise<void>;
   isLoading: boolean;
-  user: UserData;
 }
 
-export function DeleteUserDialog({
+export function LogoutDialog({
   isOpen,
   onClose,
   onConfirm,
   isLoading,
-  user,
-}: DeleteUserDialogProps) {
-  const handleConfirm = async () => {
-    await onConfirm();
-  };
-
+}: LogoutDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-white dark:bg-gray-950">
+      <DialogContent className="sm:max-w-[425px] bg-white dark:bg-gray-950">
         <DialogHeader>
-          <DialogTitle>Delete User</DialogTitle>
-          <DialogDescription>
-            Are you sure you want to delete {user.displayName || user.email}?
-            This action cannot be undone.
-          </DialogDescription>
+          <DialogTitle>Confirm Logout</DialogTitle>
+          <DialogDescription></DialogDescription>
         </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isLoading}>
+        <DialogFooter
+          style={{
+            borderTop: "1px solid rgba(100 100 100/ 20%)",
+            paddingTop: "0.5rem",
+            display: "flex",
+            marginTop: "1rem",
+          }}
+        >
+          <Button style={{ flex: 1 }} onClick={onClose} type="button">
             Cancel
           </Button>
           <Button
+            style={{ flex: 1, background: "brown" }}
             variant="destructive"
-            onClick={handleConfirm}
+            onClick={onConfirm}
             disabled={isLoading}
           >
             {isLoading ? (
               <>
                 <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                Logging out...
               </>
             ) : (
-              "Delete"
+              "Logout"
             )}
           </Button>
         </DialogFooter>

@@ -19,12 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/context/AuthContext";
 
 interface UpdateUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (updates: Partial<Omit<UserData, "uid">>) => Promise<void>;
+  onDelete: () => Promise<void>;
   isLoading: boolean;
+  isDeleting?: boolean;
   user: UserData;
 }
 
@@ -32,17 +35,22 @@ export function UpdateUserDialog({
   isOpen,
   onClose,
   onSubmit,
+  onDelete,
   isLoading,
+  isDeleting = false,
   user,
 }: UpdateUserDialogProps) {
   const [email, setEmail] = React.useState(user.email || "");
   const [name, setName] = React.useState(user.displayName || "");
   const [role, setRole] = React.useState<UserRole>(user.role);
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const { userData } = useAuth();
 
   React.useEffect(() => {
     setEmail(user.email || "");
     setName(user.displayName || "");
     setRole(user.role);
+    setShowDeleteConfirm(false);
   }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,6 +62,14 @@ export function UpdateUserDialog({
     if (role !== user.role) updates.role = role;
 
     await onSubmit(updates);
+  };
+
+  const handleDelete = async () => {
+    if (!showDeleteConfirm) {
+      setShowDeleteConfirm(true);
+      return;
+    }
+    await onDelete();
   };
 
   return (
@@ -102,25 +118,63 @@ export function UpdateUserDialog({
                 </SelectContent>
               </Select>
             </div>
+
+            {user.uid !== userData?.uid && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                style={{
+                  textDecoration: "underline",
+                  color: "crimson",
+                  background: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  justifyContent: "center",
+                }}
+              >
+                {isDeleting ? (
+                  <>
+                    <Icons.spinner className="h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : showDeleteConfirm ? (
+                  "Click again to confirm delete"
+                ) : (
+                  "Delete User"
+                )}
+              </button>
+            )}
           </div>
           <DialogFooter
             style={{
               borderTop: "1px solid rgba(100 100 100/ 20%)",
               paddingTop: "0.5rem",
-              marginTop: "1rem",
+              display: "flex",
             }}
           >
-            <Button variant="outline" type="button" onClick={onClose}>
+            <Button
+              style={{ flex: 1 }}
+              variant="outline"
+              type="button"
+              onClick={onClose}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button
+              className="bg-gray-950 dark:bg-white"
+              style={{ flex: 1 }}
+              type="submit"
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
                   Updating...
                 </>
               ) : (
-                "Update User"
+                "Update"
               )}
             </Button>
           </DialogFooter>
