@@ -571,6 +571,8 @@ export const Billing = () => {
       style={{
         border: "",
         paddingBottom: "env(safe-area-inset-bottom)",
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
         height: "100svh",
       }}
       className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200"
