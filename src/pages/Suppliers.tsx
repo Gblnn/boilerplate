@@ -341,7 +341,7 @@ export default function Suppliers() {
 
       {/* Add Supplier Dialog */}
       <Dialog open={addSupplierOpen} onOpenChange={setAddSupplierOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white dark:bg-gray-950">
           <DialogHeader>
             <DialogTitle>Add New Supplier</DialogTitle>
           </DialogHeader>

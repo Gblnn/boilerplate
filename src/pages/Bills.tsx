@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Icons } from "@/components/ui/icons";
 import { toast } from "sonner";
 import Back from "@/components/back";
-import { Ticket } from "lucide-react";
+import { ChevronLeft, ChevronRight, Ticket } from "lucide-react";
 
 export default function Bills() {
   const [bills, setBills] = useState<CustomerPurchase[]>([]);
@@ -39,7 +39,7 @@ export default function Bills() {
   const [selectedBill, setSelectedBill] = useState<CustomerPurchase | null>(
     null
   );
-  const itemsPerPage = 10;
+  const itemsPerPage = 12;
 
   useEffect(() => {
     fetchBills();
@@ -121,8 +121,11 @@ export default function Bills() {
         </div>
       ) : (
         <>
-          <div className="flex-1 border rounded-lg">
-            <Table>
+          <div
+            style={{ border: "", flex: 1 }}
+            className="flex-1 border rounded-lg"
+          >
+            <Table style={{ height: "100%" }}>
               <TableHeader>
                 <TableRow>
                   {/* <TableHead>Bill ID</TableHead> */}
@@ -181,7 +184,10 @@ export default function Bills() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex justify-between items-center">
+            <div
+              style={{ border: "", padding: "0.75rem" }}
+              className="flex justify-between items-center"
+            >
               <p className="text-sm text-gray-500">
                 Showing {paginatedBills.length} of {filteredBills.length} bills
               </p>
@@ -192,10 +198,10 @@ export default function Bills() {
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                 >
-                  Previous
+                  <ChevronLeft />
                 </Button>
                 <span className="text-sm">
-                  Page {currentPage} of {totalPages}
+                  {currentPage} of {totalPages}
                 </span>
                 <Button
                   variant="outline"
@@ -205,7 +211,7 @@ export default function Bills() {
                   }
                   disabled={currentPage === totalPages}
                 >
-                  Next
+                  <ChevronRight />
                 </Button>
               </div>
             </div>

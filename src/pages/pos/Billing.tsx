@@ -1511,51 +1511,98 @@ export const Billing = () => {
       {/* Stock Dialog */}
       <Dialog open={showStockDialog} onOpenChange={setShowStockDialog}>
         <DialogContent className="bg-gray-50 dark:bg-gray-950 max-w-4xl h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Current Stock</DialogTitle>
+          <DialogHeader className="border-b pb-4">
+            <DialogTitle className="text-2xl font-semibold flex items-center gap-2">
+              <Box className="h-5 w-5" />
+              Current Stock
+            </DialogTitle>
+            <DialogDescription />
           </DialogHeader>
 
           {/* Products List */}
           <div className="flex-1 overflow-y-auto min-h-0">
-            <div className="flex flex-col gap-4 p-4">
+            <div className="grid grid-cols-1 gap-3 p-4">
               {paginatedProducts.map((product) => (
-                <div
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
                   key={product.id}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  className="flex flex-col p-4 border rounded-xl  dark:hover:shadow-gray-800 transition-all duration-200 bg-white dark:bg-gray-900"
                 >
-                  <div>
-                    <h3 style={{ width: "12rem" }} className="font-medium">
-                      {product.name}
-                    </h3>
-                    <p
-                      style={{
-                        display: "flex",
-                        gap: "0.25rem",
-                        alignItems: "center",
-                      }}
-                      className="text-sm text-gray-500 dark:text-gray-400"
+                  <div
+                    style={{ border: "" }}
+                    className=" flex justify-between items-start mb-2"
+                  >
+                    <div className="flex-1">
+                      <h3
+                        style={{ display: "flex", width: "", flex: 1 }}
+                        className="font-medium text-sm mb-1 "
+                      >
+                        {product.name}
+                      </h3>
+                      <div
+                        style={{ border: "", width: "" }}
+                        className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400"
+                      >
+                        <Barcode className="h-3.5 w-3.5" />
+                        <span className="text-sm font-mono">
+                          {product.barcode}
+                        </span>
+                      </div>
+                    </div>
+                    <div
+                      style={{ border: "" }}
+                      className="flex flex-col items-end"
                     >
-                      <Barcode width={"1rem"} />
-                      {product.barcode}
-                    </p>
+                      <span className="text-lg font-semibold">
+                        {product.price.toFixed(3)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
+
+                  <div
+                    style={{ display: "flex", alignItems: "center" }}
+                    className="mt-auto pt-3 border-t flex items-center justify-between"
+                  >
+                    {/* <div className="flex items-center gap-2">
+                      <div
+                        className={`h-2 w-2 rounded-full ${
+                          product.stock <= (product.minStock || 10)
+                            ? "bg-red-500"
+                            : product.stock <= (product.minStock || 10) * 2
+                            ? "bg-yellow-500"
+                            : "bg-green-500"
+                        }`}
+                      />
+                      <span className="text-sm text-gray-600 dark:text-gray-300">
                         Stock
-                      </p>
-                      <p
-                        className={`font-medium ${
+                      </span>
+                    </div> */}
+                    <div
+                      style={{
+                        width: "100%",
+                        border: "",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      <Box />
+                      <span
+                        className={`text-lg font-semibold ${
                           product.stock <= (product.minStock || 10)
                             ? "text-red-500"
+                            : product.stock <= (product.minStock || 10) * 2
+                            ? "text-yellow-500"
                             : "text-green-500"
                         }`}
                       >
                         {product.stock}
-                      </p>
+                      </span>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -1563,50 +1610,56 @@ export const Billing = () => {
           {/* Search and Pagination Controls */}
           <div className="flex flex-col gap-4 bg-gray-50 dark:bg-gray-950 p-4 border-t">
             <div className="relative">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                {/* <Icons.search className="h-4 w-4 text-gray-400" /> */}
+              </div>
               <input
                 type="text"
                 value={stockSearchQuery}
                 onChange={(e) => setStockSearchQuery(e.target.value)}
-                placeholder="Search products..."
-                className="w-full pl-8 pr-3 py-2 border rounded focus:outline-none focus:border-blue-500 text-sm"
+                placeholder="Search by name or barcode..."
+                className="w-full pl-10 pr-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm transition-all duration-200"
                 autoFocus={false}
               />
             </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between px-2">
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   Showing {paginatedProducts.length} of{" "}
                   {filteredAndSortedProducts.length} products
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() =>
                       setCurrentPage((prev) => Math.max(1, prev - 1))
                     }
                     disabled={currentPage === 1}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-50"
                   >
-                    <Icons.chevronLeft className="h-4 w-4" />
-                  </button>
-                  <span className="text-sm">
+                    <Icons.chevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  <span className="text-sm px-2">
                     Page {currentPage} of {totalPages}
                   </span>
-                  <button
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() =>
                       setCurrentPage((prev) => Math.min(totalPages, prev + 1))
                     }
                     disabled={currentPage === totalPages}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded disabled:opacity-50"
                   >
-                    <Icons.chevronRight className="h-4 w-4" />
-                  </button>
+                    Next
+                    <Icons.chevronRight className="h-4 w-4 ml-1" />
+                  </Button>
                 </div>
               </div>
             )}
           </div>
-          <DialogDescription />
         </DialogContent>
       </Dialog>
 
