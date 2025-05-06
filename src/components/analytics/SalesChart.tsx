@@ -55,7 +55,17 @@ export const SalesChart = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div
+        style={{
+          width: "100%",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          borderRadius: "0.5rem",
+          background: "rgba(100 100 100/ 10%)",
+        }}
+        className="flex items-center justify-center h-full"
+      >
         <Icons.spinner className="h-6 w-6 animate-spin" />
       </div>
     );
@@ -93,7 +103,7 @@ export const SalesChart = () => {
             {/* <CartesianGrid  vertical={false} /> */}
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 11, fontWeight: 500 }}
               tickLine={false}
               axisLine={false}
             />
