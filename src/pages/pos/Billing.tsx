@@ -1494,7 +1494,11 @@ export const Billing = () => {
                   )}
                 </Button>
                 <Button
-                  style={{ height: "2.5rem", background: "crimson" }}
+                  style={{
+                    height: "2.5rem",
+                    background: "crimson",
+                    color: "white",
+                  }}
                   className="flex-1"
                   onClick={() => handleCheckout("cash")}
                   disabled={loading || items.length === 0}
