@@ -100,6 +100,43 @@ export const Billing = () => {
     customerPhone?: string;
   } | null>(null);
 
+  // Add this state for dynamic positioning
+  const [suggestionsPosition, setSuggestionsPosition] = useState<
+    "top" | "bottom"
+  >("bottom");
+  const [customerSuggestionsPosition, setCustomerSuggestionsPosition] =
+    useState<"top" | "bottom">("bottom");
+
+  // Add this effect to calculate positions
+  useEffect(() => {
+    const calculatePosition = (
+      input: HTMLInputElement | null,
+      setPosition: (pos: "top" | "bottom") => void
+    ) => {
+      if (!input) return;
+
+      const inputRect = input.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - inputRect.bottom;
+      const spaceAbove = inputRect.top;
+
+      // If there's more space below or equal space, show below
+      // If there's significantly more space above, show above
+      setPosition(
+        spaceBelow >= 200 || spaceBelow >= spaceAbove ? "bottom" : "top"
+      );
+    };
+
+    if (showSuggestions) {
+      calculatePosition(barcodeInputRef.current, setSuggestionsPosition);
+    }
+    if (showCustomerSuggestions) {
+      calculatePosition(
+        customerInputRef.current,
+        setCustomerSuggestionsPosition
+      );
+    }
+  }, [showSuggestions, showCustomerSuggestions]);
+
   // Initialize products cache from localStorage and fetch fresh data if online
   useEffect(() => {
     console.log(isCacheLoading);
@@ -997,7 +1034,7 @@ export const Billing = () => {
               alignItems: "center",
               gap: "0.75rem",
               justifyContent: "space-between",
-              borderBottom: "1px solid rgba(100 100 100/ 40%)",
+              borderBottom: "1px solid rgba(100 100 100/ 5%)",
               position: "sticky",
               top: 0,
               zIndex: 40,
@@ -1035,140 +1072,10 @@ export const Billing = () => {
             </div>
           </div>
 
-          {/* Scrollable Items List */}
-          <div
-            style={{
-              flex: 1,
-              paddingTop: "0.5rem",
-              paddingBottom: "0.5rem",
-              padding: "0.75rem",
-              border: "",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "flex-end",
-            }}
-            className="overflow-y-auto"
-          >
-            <AnimatePresence>
-              {items.map((item, index) => (
-                <motion.div
-                  key={`${item.barcode}-${index}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -50 }}
-                  className="flex items-center border rounded-lg mb-2 hover:shadow-sm transition-shadow"
-                >
-                  <button
-                    style={{ marginLeft: "0.75rem", marginRight: "0.25rem" }}
-                    onClick={() => handleRemoveItem(index)}
-                    className="p-1.5 text-red-500 hover:text-red-600"
-                  >
-                    <MinusCircle className="h-4 w-4" />
-                  </button>
-                  {/* Item Details */}
-                  <div className="flex-1 min-w-0 p-2">
-                    <h3
-                      style={{ fontSize: "0.8rem" }}
-                      className="font-medium truncate"
-                    >
-                      {item.name}
-                    </h3>
-                    <p
-                      style={{ fontSize: "0.8rem", opacity: 0.5 }}
-                      className="text-sm "
-                    >
-                      {item.price.toFixed(3)}
-                    </p>
-                  </div>
-
-                  {/* Quantity Controls and Price */}
-                  <div className="flex items-center gap-2 px-2">
-                    <div
-                      style={{ marginRight: "0.25rem" }}
-                      className="text-right min-w-[40px] text-sm font-medium "
-                    >
-                      {item.subtotal.toFixed(3)}
-                    </div>
-                    <div className="flex items-center rounded-lg">
-                      <button
-                        onClick={() =>
-                          handleQuantityChange(
-                            index,
-                            Math.max(1, item.quantity - 1)
-                          )
-                        }
-                        className="p-1.5 text-gray-600 hover:text-gray-800 disabled:text-gray-300"
-                        disabled={item.quantity <= 1}
-                      >
-                        <Icons.minus className="h-4 w-4" />
-                      </button>
-                      <input
-                        style={{ background: "none", width: "4rem" }}
-                        type="number"
-                        min="1"
-                        max={productsCache[item.barcode]?.stock || 999}
-                        value={item.quantity}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                          const value = e.target.value;
-                          // Allow empty string for typing
-                          if (value === "") {
-                            return;
-                          }
-                          const newQuantity = parseInt(value);
-                          const availableStock =
-                            productsCache[item.barcode]?.stock || 999;
-
-                          if (!isNaN(newQuantity) && newQuantity > 0) {
-                            if (newQuantity > availableStock) {
-                              // Show tooltip with available stock
-                              toast.error(
-                                `Only ${availableStock} items available in stock`
-                              );
-                              // Set to max available stock
-                              handleQuantityChange(index, availableStock);
-                            } else {
-                              handleQuantityChange(index, newQuantity);
-                            }
-                          }
-                        }}
-                        onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
-                          // Set to 1 if input is empty when losing focus
-                          if (e.target.value === "") {
-                            handleQuantityChange(index, 1);
-                          }
-                        }}
-                        onFocus={(e: React.FocusEvent<HTMLInputElement>) => {
-                          e.target.select();
-                        }}
-                        onClick={(e: React.MouseEvent<HTMLInputElement>) => {
-                          e.currentTarget.select();
-                        }}
-                        className="w-12 text-center font-medium text-sm border-none focus:outline-none focus:ring-0 bg-transparent"
-                      />
-                      <button
-                        onClick={() =>
-                          handleQuantityChange(index, item.quantity + 1)
-                        }
-                        className="p-1.5 text-gray-600 hover:text-gray-800"
-                      >
-                        <Icons.plus className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-            {items.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                <Icons.banknote className="h-10 w-10 mb-2 opacity-50" />
-                <p className="text-sm">No items added to bill</p>
-              </div>
-            )}
-          </div>
           {/* Bottom Bar with Barcode Input */}
           <div
             style={{
-              boxShadow: "1px 1px 10px rgba(0, 0, 0, 0.2)",
+              // boxShadow: "1px 1px 10px rgba(0, 0, 0, 0.2)",
               borderTop: "1px solid rgba(100 100 100/ 20%)",
               borderBottom: "1px solid rgba(100 100 100/ 20%)",
               // position: "fixed",
@@ -1269,6 +1176,45 @@ export const Billing = () => {
               </div>
             </div>
             <form onSubmit={handleBarcodeSubmit} className="p-2 space-y-2">
+              {/* Barcode Input */}
+              <div className="relative">
+                <input
+                  ref={barcodeInputRef}
+                  type="text"
+                  value={barcode}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="Scan barcode or search by product name..."
+                  className="w-full pl-8 pr-3 py-1.5 border rounded focus:outline-none focus:border-blue-500 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900"
+                  disabled={loading}
+                />
+
+                {showSuggestions && suggestions.length > 0 && (
+                  <div
+                    ref={suggestionsRef}
+                    className={`absolute ${
+                      suggestionsPosition === "bottom"
+                        ? "top-full mt-2"
+                        : "bottom-full mb-2"
+                    } left-0 right-0 bg-white dark:bg-gray-900 border rounded-lg shadow-lg max-h-60 overflow-y-auto z-50`}
+                  >
+                    {suggestions.map((product) => (
+                      <div
+                        key={product.id}
+                        onClick={() => handleSuggestionClick(product)}
+                        className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer flex justify-between items-center text-gray-900 dark:text-gray-100"
+                      >
+                        <div>
+                          <div className="font-medium">{product.name}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            OMR {product.price.toFixed(3)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Customer Input */}
               <div
                 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
@@ -1280,18 +1226,22 @@ export const Billing = () => {
                   value={customerName}
                   onChange={(e) => handleCustomerSearch(e.target.value)}
                   placeholder="Enter customer name"
-                  className="w-full pl-8 pr-3 py-1.5 border rounded focus:outline-none focus:border-blue-500 text-sm"
+                  className="w-full pl-8 pr-3 py-1.5 border rounded focus:outline-none focus:border-blue-500 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900"
                 />
                 {showCustomerSuggestions && customerSuggestions.length > 0 && (
                   <div
                     ref={customerSuggestionsRef}
-                    className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-60 overflow-y-auto z-50"
+                    className={`absolute ${
+                      customerSuggestionsPosition === "bottom"
+                        ? "top-full mt-2"
+                        : "bottom-full mb-2"
+                    } left-0 right-0 bg-white dark:bg-gray-900 border rounded-lg shadow-lg max-h-60 overflow-y-auto z-50`}
                   >
                     {customerSuggestions.map((customer) => (
                       <div
                         key={customer.id}
                         onClick={() => handleCustomerSelect(customer)}
-                        className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                        className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-900 dark:text-gray-100"
                       >
                         <div className="font-medium">{customer.name}</div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -1323,45 +1273,138 @@ export const Billing = () => {
                   </button>
                 )}
               </div>
-
-              {/* Barcode Input */}
-              <div className="relative">
-                <input
-                  ref={barcodeInputRef}
-                  type="text"
-                  value={barcode}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  placeholder="Scan barcode or search by product name..."
-                  className="w-full pl-8 pr-3 py-1.5 border rounded focus:outline-none focus:border-blue-500 text-sm"
-                  disabled={loading}
-                />
-
-                {showSuggestions && suggestions.length > 0 && (
-                  <div
-                    ref={suggestionsRef}
-                    className="absolute bottom-full left-0 right-0 mb-2 bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-60 overflow-y-auto z-50"
-                  >
-                    {suggestions.map((product) => (
-                      <div
-                        key={product.id}
-                        onClick={() => handleSuggestionClick(product)}
-                        className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex justify-between items-center"
-                      >
-                        <div>
-                          <div className="font-medium">{product.name}</div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            OMR {product.price.toFixed(3)}
-                          </div>
-                        </div>
-                        {/* <div className="text-sm font-medium">
-                        Barcode: {product.barcode}
-                        </div> */}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </form>
+          </div>
+
+          {/* Scrollable Items List */}
+          <div
+            style={{
+              flex: 1,
+              paddingTop: "0.5rem",
+              paddingBottom: "0.5rem",
+              padding: "0.75rem",
+              border: "",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "flex-start",
+            }}
+            className="overflow-y-auto"
+          >
+            <AnimatePresence>
+              {items.map((item, index) => (
+                <motion.div
+                  key={`${item.barcode}-${index}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -50 }}
+                  className="flex items-center border rounded-lg mb-2  bg-white dark:bg-gray-900"
+                >
+                  <button
+                    style={{ marginLeft: "0.75rem", marginRight: "0.25rem" }}
+                    onClick={() => handleRemoveItem(index)}
+                    className="p-1.5 text-red-500 hover:text-red-600"
+                  >
+                    <MinusCircle className="h-4 w-4" />
+                  </button>
+                  {/* Item Details */}
+                  <div className="flex-1 min-w-0 p-2">
+                    <h3
+                      style={{ fontSize: "0.8rem" }}
+                      className="font-medium truncate text-gray-900 dark:text-gray-100"
+                    >
+                      {item.name}
+                    </h3>
+                    <p
+                      style={{ fontSize: "0.8rem" }}
+                      className="text-sm text-gray-500 dark:text-gray-400"
+                    >
+                      {item.price.toFixed(3)}
+                    </p>
+                  </div>
+
+                  {/* Quantity Controls and Price */}
+                  <div className="flex items-center gap-2 px-2">
+                    <div
+                      style={{ marginRight: "0.25rem" }}
+                      className="text-right min-w-[40px] text-sm font-medium text-gray-900 dark:text-gray-100"
+                    >
+                      {item.subtotal.toFixed(3)}
+                    </div>
+                    <div className="flex items-center rounded-lg">
+                      <button
+                        onClick={() =>
+                          handleQuantityChange(
+                            index,
+                            Math.max(1, item.quantity - 1)
+                          )
+                        }
+                        className="p-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 disabled:text-gray-300 dark:disabled:text-gray-600"
+                        disabled={item.quantity <= 1}
+                      >
+                        <Icons.minus className="h-4 w-4" />
+                      </button>
+                      <input
+                        style={{ background: "none", width: "4rem" }}
+                        type="number"
+                        min="1"
+                        max={productsCache[item.barcode]?.stock || 999}
+                        value={item.quantity}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                          const value = e.target.value;
+                          // Allow empty string for typing
+                          if (value === "") {
+                            return;
+                          }
+                          const newQuantity = parseInt(value);
+                          const availableStock =
+                            productsCache[item.barcode]?.stock || 999;
+
+                          if (!isNaN(newQuantity) && newQuantity > 0) {
+                            if (newQuantity > availableStock) {
+                              // Show tooltip with available stock
+                              toast.error(
+                                `Only ${availableStock} items available in stock`
+                              );
+                              // Set to max available stock
+                              handleQuantityChange(index, availableStock);
+                            } else {
+                              handleQuantityChange(index, newQuantity);
+                            }
+                          }
+                        }}
+                        onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
+                          // Set to 1 if input is empty when losing focus
+                          if (e.target.value === "") {
+                            handleQuantityChange(index, 1);
+                          }
+                        }}
+                        onFocus={(e: React.FocusEvent<HTMLInputElement>) => {
+                          e.target.select();
+                        }}
+                        onClick={(e: React.MouseEvent<HTMLInputElement>) => {
+                          e.currentTarget.select();
+                        }}
+                        className="w-12 text-center font-medium text-sm border-none focus:outline-none focus:ring-0 bg-transparent text-gray-900 dark:text-gray-100"
+                      />
+                      <button
+                        onClick={() =>
+                          handleQuantityChange(index, item.quantity + 1)
+                        }
+                        className="p-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                      >
+                        <Icons.plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+            {items.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                <Icons.banknote className="h-10 w-10 mb-2 opacity-50" />
+                <p className="text-sm">No items added to bill</p>
+              </div>
+            )}
           </div>
         </div>
 

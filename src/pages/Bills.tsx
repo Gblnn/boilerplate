@@ -28,7 +28,9 @@ import { Button } from "@/components/ui/button";
 import { Icons } from "@/components/ui/icons";
 import { toast } from "sonner";
 import Back from "@/components/back";
-import { ChevronLeft, ChevronRight, Ticket } from "lucide-react";
+import { ChevronLeft, ChevronRight, Ticket, FileText } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function Bills() {
   const [bills, setBills] = useState<CustomerPurchase[]>([]);
@@ -39,7 +41,7 @@ export default function Bills() {
   const [selectedBill, setSelectedBill] = useState<CustomerPurchase | null>(
     null
   );
-  const itemsPerPage = 12;
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchBills();
@@ -75,6 +77,76 @@ export default function Bills() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  const generatePDF = (bill: CustomerPurchase) => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 20;
+      let yPos = margin;
+
+      // Add header
+      doc.setFontSize(20);
+      doc.text("Bill Receipt", pageWidth / 2, yPos, { align: "center" });
+      yPos += 10;
+
+      // Add bill details
+      doc.setFontSize(12);
+      doc.text(`Bill ID: ${bill.id}`, margin, yPos);
+      yPos += 7;
+      doc.text(`Customer: ${bill.customerName}`, margin, yPos);
+      yPos += 7;
+      doc.text(
+        `Date: ${format(
+          typeof bill.date === "string" ? new Date(bill.date) : bill.date,
+          "dd/MM/yyyy HH:mm"
+        )}`,
+        margin,
+        yPos
+      );
+      yPos += 7;
+      doc.text(`Cashier: ${bill.userName}`, margin, yPos);
+      yPos += 7;
+      doc.text(
+        `Payment Method: ${bill.paymentMethod.toUpperCase()}`,
+        margin,
+        yPos
+      );
+      yPos += 15;
+
+      // Add items table
+      const tableData = bill.items.map((item) => [
+        item.name,
+        item.quantity.toString(),
+        item.price.toFixed(3),
+        (item.quantity * item.price).toFixed(3),
+      ]);
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [["Item", "Qty", "Price", "Total"]],
+        body: tableData,
+        theme: "grid",
+        headStyles: { fillColor: [41, 128, 185] },
+        margin: { left: margin },
+      });
+
+      // Add total
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      doc.text(
+        `Total Amount: ${bill.total.toFixed(3)}`,
+        pageWidth - margin,
+        finalY,
+        { align: "right" }
+      );
+
+      // Save and open PDF
+      doc.save(`bill-${bill.id}.pdf`);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Failed to generate PDF");
+    }
+  };
 
   return (
     <div
@@ -128,20 +200,21 @@ export default function Bills() {
             <Table style={{ height: "100%" }}>
               <TableHeader>
                 <TableRow>
-                  {/* <TableHead>Bill ID</TableHead> */}
                   <TableHead>Customer</TableHead>
                   <TableHead>Items</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Payment</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Cashier</TableHead>
-                  {/* <TableHead></TableHead> */}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedBills.map((bill) => (
-                  <TableRow onClick={() => setSelectedBill(bill)} key={bill.id}>
-                    {/* <TableCell className="font-medium">{bill.id}</TableCell> */}
+                  <TableRow
+                    key={bill.id}
+                    onClick={() => setSelectedBill(bill)}
+                    className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                  >
                     <TableCell>{bill.customerName}</TableCell>
                     <TableCell>{bill.items.length} items</TableCell>
                     <TableCell>{bill.total.toFixed(3)}</TableCell>
@@ -167,15 +240,6 @@ export default function Bills() {
                       )}
                     </TableCell>
                     <TableCell>{bill.userName}</TableCell>
-                    {/* <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedBill(bill)}
-                      >
-                        View Details
-                      </Button>
-                    </TableCell> */}
                   </TableRow>
                 ))}
               </TableBody>
@@ -195,7 +259,10 @@ export default function Bills() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentPage((p) => Math.max(1, p - 1));
+                  }}
                   disabled={currentPage === 1}
                 >
                   <ChevronLeft />
@@ -206,9 +273,10 @@ export default function Bills() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(totalPages, p + 1))
-                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentPage((p) => Math.min(totalPages, p + 1));
+                  }}
                   disabled={currentPage === totalPages}
                 >
                   <ChevronRight />
@@ -221,15 +289,12 @@ export default function Bills() {
 
       {/* Bill Details Dialog */}
       <Dialog open={!!selectedBill} onOpenChange={() => setSelectedBill(null)}>
-        <DialogContent className=" bg-white dark:bg-gray-950">
-          <DialogHeader style={{ display: "flex", border: "solid" }}>
+        <DialogContent className="max-w-2xl bg-white dark:bg-gray-950">
+          <DialogHeader>
             <DialogTitle>Bill Details</DialogTitle>
           </DialogHeader>
           {selectedBill && (
-            <div
-              style={{ border: "solid", width: "18rem" }}
-              className="space-y-4"
-            >
+            <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-500">Customer</p>
@@ -254,6 +319,12 @@ export default function Bills() {
                   <p className="text-sm text-gray-500">Cashier</p>
                   <p className="font-medium">{selectedBill.userName}</p>
                 </div>
+                <div>
+                  <p className="text-sm text-gray-500">Payment Method</p>
+                  <p className="font-medium capitalize">
+                    {selectedBill.paymentMethod}
+                  </p>
+                </div>
               </div>
 
               <div>
@@ -273,7 +344,9 @@ export default function Bills() {
                         <TableCell>{item.name}</TableCell>
                         <TableCell>{item.price.toFixed(3)}</TableCell>
                         <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{item.subtotal.toFixed(3)}</TableCell>
+                        <TableCell>
+                          {(item.quantity * item.price).toFixed(3)}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -293,6 +366,16 @@ export default function Bills() {
                   <span>Total</span>
                   <span>OMR {selectedBill.total.toFixed(3)}</span>
                 </div>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button
+                  onClick={() => generatePDF(selectedBill)}
+                  className="flex items-center gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Download PDF
+                </Button>
               </div>
             </div>
           )}
