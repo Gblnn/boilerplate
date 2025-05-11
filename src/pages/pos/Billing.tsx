@@ -38,12 +38,17 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeftToLine,
   Barcode,
+  BookX,
   Box,
   Check,
   ChevronUp,
   LoaderCircle,
   MinusCircle,
+  Package,
+  PackageOpen,
+  PackageX,
   PenLine,
+  Ticket,
   UserPlus,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -106,6 +111,134 @@ export const Billing = () => {
   >("bottom");
   const [customerSuggestionsPosition, setCustomerSuggestionsPosition] =
     useState<"top" | "bottom">("bottom");
+
+  // Add state for selected suggestion index
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [selectedCustomerSuggestionIndex, setSelectedCustomerSuggestionIndex] =
+    useState(-1);
+
+  // Add keyboard navigation handlers
+  const handleKeyDown = (
+    e: React.KeyboardEvent,
+    type: "product" | "customer"
+  ) => {
+    if (type === "product" && showSuggestions) {
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          const newProductIndex =
+            selectedSuggestionIndex < suggestions.length - 1
+              ? selectedSuggestionIndex + 1
+              : selectedSuggestionIndex;
+          setSelectedSuggestionIndex(newProductIndex);
+          // Scroll selected item into view
+          const productElement = suggestionsRef.current?.children[
+            newProductIndex
+          ] as HTMLElement;
+          if (productElement) {
+            productElement.scrollIntoView({
+              block: "nearest",
+              behavior: "smooth",
+            });
+          }
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          const prevProductIndex =
+            selectedSuggestionIndex > 0
+              ? selectedSuggestionIndex - 1
+              : selectedSuggestionIndex;
+          setSelectedSuggestionIndex(prevProductIndex);
+          // Scroll selected item into view
+          const prevProductElement = suggestionsRef.current?.children[
+            prevProductIndex
+          ] as HTMLElement;
+          if (prevProductElement) {
+            prevProductElement.scrollIntoView({
+              block: "nearest",
+              behavior: "smooth",
+            });
+          }
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (
+            selectedSuggestionIndex >= 0 &&
+            selectedSuggestionIndex < suggestions.length
+          ) {
+            handleSuggestionClick(suggestions[selectedSuggestionIndex]);
+          }
+          break;
+        case "Escape":
+          setShowSuggestions(false);
+          setSelectedSuggestionIndex(-1);
+          break;
+      }
+    } else if (type === "customer" && showCustomerSuggestions) {
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          const newCustomerIndex =
+            selectedCustomerSuggestionIndex < customerSuggestions.length - 1
+              ? selectedCustomerSuggestionIndex + 1
+              : selectedCustomerSuggestionIndex;
+          setSelectedCustomerSuggestionIndex(newCustomerIndex);
+          // Scroll selected item into view
+          const customerElement = customerSuggestionsRef.current?.children[
+            newCustomerIndex
+          ] as HTMLElement;
+          if (customerElement) {
+            customerElement.scrollIntoView({
+              block: "nearest",
+              behavior: "smooth",
+            });
+          }
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          const prevCustomerIndex =
+            selectedCustomerSuggestionIndex > 0
+              ? selectedCustomerSuggestionIndex - 1
+              : selectedCustomerSuggestionIndex;
+          setSelectedCustomerSuggestionIndex(prevCustomerIndex);
+          // Scroll selected item into view
+          const prevCustomerElement = customerSuggestionsRef.current?.children[
+            prevCustomerIndex
+          ] as HTMLElement;
+          if (prevCustomerElement) {
+            prevCustomerElement.scrollIntoView({
+              block: "nearest",
+              behavior: "smooth",
+            });
+          }
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (
+            selectedCustomerSuggestionIndex >= 0 &&
+            selectedCustomerSuggestionIndex < customerSuggestions.length
+          ) {
+            handleCustomerSelect(
+              customerSuggestions[selectedCustomerSuggestionIndex]
+            );
+          }
+          break;
+        case "Escape":
+          setShowCustomerSuggestions(false);
+          setSelectedCustomerSuggestionIndex(-1);
+          break;
+      }
+    }
+  };
+
+  // Reset selected indices when suggestions change
+  useEffect(() => {
+    setSelectedSuggestionIndex(-1);
+  }, [suggestions]);
+
+  useEffect(() => {
+    setSelectedCustomerSuggestionIndex(-1);
+  }, [customerSuggestions]);
 
   // Add this effect to calculate positions
   useEffect(() => {
@@ -1131,7 +1264,7 @@ export const Billing = () => {
                     fontSize: "0.9rem",
                   }}
                 >
-                  <MinusCircle width={"1.25rem"} />
+                  <MinusCircle color="crimson" width={"1.25rem"} />
                   Clear Bill
                 </Button>
               </div>
@@ -1183,6 +1316,7 @@ export const Billing = () => {
                   type="text"
                   value={barcode}
                   onChange={(e) => handleSearchChange(e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, "product")}
                   placeholder="Scan barcode or search by product name..."
                   className="w-full pl-8 pr-3 py-1.5 border rounded focus:outline-none focus:border-blue-500 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900"
                   disabled={loading}
@@ -1197,11 +1331,15 @@ export const Billing = () => {
                         : "bottom-full mb-2"
                     } left-0 right-0 bg-white dark:bg-gray-900 border rounded-lg shadow-lg max-h-60 overflow-y-auto z-50`}
                   >
-                    {suggestions.map((product) => (
+                    {suggestions.map((product, index) => (
                       <div
                         key={product.id}
                         onClick={() => handleSuggestionClick(product)}
-                        className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer flex justify-between items-center text-gray-900 dark:text-gray-100"
+                        className={`px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer flex justify-between items-center text-gray-900 dark:text-gray-100 ${
+                          index === selectedSuggestionIndex
+                            ? "bg-gray-100 dark:bg-gray-800"
+                            : ""
+                        }`}
                       >
                         <div>
                           <div className="font-medium">{product.name}</div>
@@ -1225,6 +1363,7 @@ export const Billing = () => {
                   type="text"
                   value={customerName}
                   onChange={(e) => handleCustomerSearch(e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, "customer")}
                   placeholder="Enter customer name"
                   className="w-full pl-8 pr-3 py-1.5 border rounded focus:outline-none focus:border-blue-500 text-sm text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900"
                 />
@@ -1237,11 +1376,15 @@ export const Billing = () => {
                         : "bottom-full mb-2"
                     } left-0 right-0 bg-white dark:bg-gray-900 border rounded-lg shadow-lg max-h-60 overflow-y-auto z-50`}
                   >
-                    {customerSuggestions.map((customer) => (
+                    {customerSuggestions.map((customer, index) => (
                       <div
                         key={customer.id}
                         onClick={() => handleCustomerSelect(customer)}
-                        className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-900 dark:text-gray-100"
+                        className={`px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-gray-900 dark:text-gray-100 ${
+                          index === selectedCustomerSuggestionIndex
+                            ? "bg-gray-100 dark:bg-gray-800"
+                            : ""
+                        }`}
                       >
                         <div className="font-medium">{customer.name}</div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -1401,7 +1544,7 @@ export const Billing = () => {
             </AnimatePresence>
             {items.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
-                <Icons.banknote className="h-10 w-10 mb-2 opacity-50" />
+                <Package className="h-10 w-10 mb-2 opacity-50" />
                 <p className="text-sm">No items added to bill</p>
               </div>
             )}
@@ -1422,10 +1565,16 @@ export const Billing = () => {
             className="p-3 flex gap-2 align-middle justify-between"
           >
             <h3
-              style={{ fontSize: "1.25rem" }}
+              style={{
+                fontSize: "1.25rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
               className=" font-semibold text-gray-800 dark:text-gray-200"
             >
-              Bill Summary
+              <Ticket />
+              Summary
             </h3>
             <div className="flex items-center gap-2">
               {/* <button
