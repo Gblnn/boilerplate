@@ -40,7 +40,7 @@ export default function Bills() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedBill, setSelectedBill] = useState<CustomerPurchase | null>(
     null
-  );
+  );  
   const itemsPerPage = 10;
 
   useEffect(() => {

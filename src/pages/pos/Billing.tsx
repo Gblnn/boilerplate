@@ -35,25 +35,22 @@ import {
 import { BillItem, Customer, CustomerPurchase, Product } from "@/types/pos";
 import { collection, getDocs } from "firebase/firestore";
 import { AnimatePresence, motion } from "framer-motion";
+import { jsPDF } from "jspdf";
 import {
   ArrowLeftToLine,
   Barcode,
-  BookX,
   Box,
   Check,
   ChevronUp,
   LoaderCircle,
   MinusCircle,
   Package,
-  PackageOpen,
-  PackageX,
   PenLine,
   Ticket,
   UserPlus,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { jsPDF } from "jspdf";
 
 export const Billing = () => {
   const { user, userData, isOnline } = useAuth();
